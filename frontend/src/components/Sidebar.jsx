@@ -17,7 +17,7 @@ export default function Sidebar({ activePage, onNavigate }) {
     <nav style={{ width: 240, minWidth: 240, height: '100vh', background: 'var(--surface)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', zIndex: 100 }}>
       {/* Header */}
       <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10, minHeight: 56 }}>
-        <img src="/images/logo-icon.svg" alt="H" style={{ width: 32, height: 32, flexShrink: 0 }} />
+        <img src="/images/logo-icon.svg" alt="H" style={{ width: 40, height: 40, flexShrink: 0 }} />
         <div>
           <div style={{ fontWeight: 700, fontSize: 14, lineHeight: 1.2 }}>HighPro</div>
           <div style={{ fontSize: 9, color: 'var(--text-tertiary)', letterSpacing: 1, textTransform: 'uppercase' }}>Solutions</div>

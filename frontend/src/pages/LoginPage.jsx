@@ -15,7 +15,7 @@ export default function LoginPage() {
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--background)' }}>
       <div style={{ background: 'var(--surface)', borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.08)', padding: 40, width: '100%', maxWidth: 420 }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <img src="/images/logo-icon.svg" alt="High Pro" style={{ width: 72, height: 72, margin: '0 auto 14px', display: 'block' }} />
+          <img src="/images/logo-icon.svg" alt="High Pro" style={{ width: 120, height: 120, margin: '0 auto 16px', display: 'block' }} />
           <h2 style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: 22 }}>HighPro Solutions</h2>
           <p style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 4 }}>Sistema de Gestao de Escola de Solda</p>
         </div>
