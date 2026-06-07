@@ -1,41 +1,72 @@
 import { create } from 'zustand';
-import api from '../services/api';
+import { supabase } from '../lib/supabase';
 
-const useAuthStore = create((set) => ({
-  user: JSON.parse(localStorage.getItem('hp_user') || 'null'),
-  token: localStorage.getItem('hp_token') || null,
-  loading: false,
+const useAuthStore = create((set, get) => ({
+  user: null,
+  profile: null,
+  loading: true,
   error: null,
+
+  init: async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+      set({ user: session.user, profile, loading: false });
+    } else {
+      set({ loading: false });
+    }
+
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_OUT') {
+        set({ user: null, profile: null });
+      }
+      if (event === 'SIGNED_IN' && session?.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+        set({ user: session.user, profile });
+      }
+    });
+  },
 
   login: async (email, senha) => {
     set({ loading: true, error: null });
-    try {
-      const { data } = await api.post('/auth/login', { email, senha });
-      localStorage.setItem('hp_token', data.token);
-      localStorage.setItem('hp_user', JSON.stringify(data.user));
-      set({ user: data.user, token: data.token, loading: false });
-      return true;
-    } catch (err) {
-      set({ error: err.response?.data?.error || 'Erro de conexao', loading: false });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password: senha });
+
+    if (error) {
+      set({ error: 'Credenciais invalidas', loading: false });
       return false;
     }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', data.user.id)
+      .single();
+
+    if (profile && !profile.ativo) {
+      await supabase.auth.signOut();
+      set({ error: 'Conta desativada', loading: false });
+      return false;
+    }
+
+    set({ user: data.user, profile, loading: false });
+    return true;
   },
 
-  logout: () => {
-    localStorage.removeItem('hp_token');
-    localStorage.removeItem('hp_user');
-    set({ user: null, token: null });
+  logout: async () => {
+    await supabase.auth.signOut();
+    set({ user: null, profile: null });
   },
 
-  isGestor: () => {
-    const state = useAuthStore.getState();
-    return state.user?.perfil === 'GESTOR';
-  },
-
-  isGestorOrAtendimento: () => {
-    const state = useAuthStore.getState();
-    return ['GESTOR', 'ATENDIMENTO'].includes(state.user?.perfil);
-  }
+  isGestor: () => get().profile?.perfil === 'GESTOR',
+  isGestorOrAtendimento: () => ['GESTOR', 'ATENDIMENTO'].includes(get().profile?.perfil),
 }));
 
 export default useAuthStore;

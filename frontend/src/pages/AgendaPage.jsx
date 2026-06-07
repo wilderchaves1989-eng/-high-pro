@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import api from '../services/api';
+import { aulas as aulasApi, alunos as alunosApi } from '../services/api';
 import Modal from '../components/Modal';
 
 const TIPO_CLS = { PRATICA: { bg: '#E6F9F3', color: '#00A86B', dot: '#00C875' }, TEORICA: { bg: '#E6F2FF', color: '#0073EA', dot: '#0073EA' }, VISITA_TECNICA: { bg: '#FFF9E6', color: '#B8860B', dot: '#FFCB00' } };
@@ -21,11 +21,11 @@ export default function AgendaPage({ actionTrigger }) {
   const carregar = useCallback(() => {
     const ano = calDate.getFullYear();
     const mes = calDate.getMonth() + 1;
-    api.get('/aulas', { params: { ano, mes } }).then((r) => setAulas(r.data)).catch(() => {});
+    aulasApi.listar({ ano, mes }).then(setAulas).catch(() => {});
   }, [calDate]);
 
   useEffect(() => { carregar(); }, [carregar]);
-  useEffect(() => { api.get('/alunos').then((r) => setAlunos(r.data)).catch(() => {}); }, []);
+  useEffect(() => { alunosApi.listar().then(setAlunos).catch(() => {}); }, []);
   useEffect(() => { if (actionTrigger > 0) abrirModal(); }, [actionTrigger]);
 
   const abrirModal = (aula) => {
@@ -42,8 +42,8 @@ export default function AgendaPage({ actionTrigger }) {
   const salvar = async (e) => {
     e.preventDefault();
     try {
-      if (editId) await api.put(`/aulas/${editId}`, form);
-      else await api.post('/aulas', form);
+      if (editId) await aulasApi.atualizar(editId, form);
+      else await aulasApi.criar(form);
       setModal(false);
       carregar();
     } catch (err) {

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import api from '../services/api';
+import { cursos as cursosApi, users as usersApi, alunos as alunosApi, config as configApi } from '../services/api';
 import Modal from '../components/Modal';
 
 const PROCESSOS = [
@@ -27,14 +27,14 @@ export default function ConfigPage() {
   const [editCredId, setEditCredId] = useState(null);
 
   useEffect(() => {
-    api.get('/config').then((r) => setSistemaNome(r.data.sistemaNome || 'High Pro')).catch(() => {});
-    api.get('/cursos').then((r) => setCursos(r.data)).catch(() => {});
-    api.get('/users').then((r) => setUsers(r.data)).catch(() => {});
-    api.get('/alunos').then((r) => setAlunos(r.data)).catch(() => {});
+    configApi.carregar().then((c) => setSistemaNome(c.sistemaNome || 'High Pro')).catch(() => {});
+    cursosApi.listar().then(setCursos).catch(() => {});
+    usersApi.listar().then(setUsers).catch(() => {});
+    alunosApi.listar().then(setAlunos).catch(() => {});
   }, []);
 
   const salvarNome = () => {
-    api.put('/config', { sistemaNome }).catch(() => {});
+    configApi.salvar('sistemaNome', sistemaNome).catch(() => {});
   };
 
   // Cursos
@@ -52,19 +52,17 @@ export default function ConfigPage() {
   const salvarCurso = async (e) => {
     e.preventDefault();
     try {
-      if (editCursoId) await api.put(`/cursos/${editCursoId}`, cursoForm);
-      else await api.post('/cursos', cursoForm);
+      if (editCursoId) await cursosApi.atualizar(editCursoId, cursoForm);
+      else await cursosApi.criar(cursoForm);
       setModalCurso(false);
-      const r = await api.get('/cursos');
-      setCursos(r.data);
+      setCursos(await cursosApi.listar());
     } catch (err) { alert(err.response?.data?.error || 'Erro'); }
   };
 
   const excluirCurso = async (id) => {
     if (!confirm('Remover curso?')) return;
-    await api.delete(`/cursos/${id}`);
-    const r = await api.get('/cursos');
-    setCursos(r.data);
+    await cursosApi.excluir(id);
+    setCursos(await cursosApi.listar());
   };
 
   // Credenciais
@@ -84,19 +82,18 @@ export default function ConfigPage() {
     try {
       const data = { ...credForm };
       if (!data.senha && editCredId) delete data.senha;
-      if (editCredId) await api.put(`/users/${editCredId}`, data);
-      else await api.post('/users', data);
+      if (editCredId) await usersApi.atualizar(editCredId, data);
+      else await usersApi.criar(data);
       setModalCred(false);
-      const r = await api.get('/users');
-      setUsers(r.data);
+      setUsers(await usersApi.listar());
     } catch (err) { alert(err.response?.data?.error || 'Erro'); }
   };
 
   const excluirCred = async (id) => {
     if (!confirm('Remover credencial?')) return;
-    await api.delete(`/users/${id}`);
-    const r = await api.get('/users');
-    setUsers(r.data);
+    // Nao e possivel remover utilizadores via client-side, apenas desativar
+    await usersApi.atualizar(id, { ativo: false });
+    setUsers(await usersApi.listar());
   };
 
   const fmtValor = (v) => `EUR ${Number(v).toLocaleString('pt-PT', { minimumFractionDigits: 2 })}`;

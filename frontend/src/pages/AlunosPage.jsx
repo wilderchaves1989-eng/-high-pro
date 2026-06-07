@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import api from '../services/api';
+import { alunos as alunosApi, cursos as cursosApi } from '../services/api';
 import Modal from '../components/Modal';
 import useAuthStore from '../store/authStore';
 
@@ -27,21 +27,17 @@ export default function AlunosPage({ actionTrigger }) {
   const canEdit = useAuthStore.getState().isGestorOrAtendimento();
 
   const carregar = useCallback(() => {
-    const params = {};
-    if (busca) params.busca = busca;
-    if (filtroCurso) params.cursoId = filtroCurso;
-    if (filtroStatus) params.status = filtroStatus;
-    api.get('/alunos', { params }).then((r) => setAlunos(r.data)).catch(() => {});
+    alunosApi.listar({ busca, cursoId: filtroCurso, status: filtroStatus }).then(setAlunos).catch(() => {});
   }, [busca, filtroCurso, filtroStatus]);
 
   useEffect(() => { carregar(); }, [carregar]);
-  useEffect(() => { api.get('/cursos').then((r) => setCursos(r.data)).catch(() => {}); }, []);
+  useEffect(() => { cursosApi.listar().then(setCursos).catch(() => {}); }, []);
   useEffect(() => { if (actionTrigger > 0) abrirModal(); }, [actionTrigger]);
 
   const abrirModal = (aluno) => {
     if (aluno) {
       setEditId(aluno.id);
-      setForm({ nome: aluno.nome, email: aluno.email, telefone: aluno.telefone || '', cursoId: aluno.cursoId || '', status: aluno.status, origem: aluno.origem || 'Instagram' });
+      setForm({ nome: aluno.nome, email: aluno.email, telefone: aluno.telefone || '', cursoId: aluno.curso_id || '', status: aluno.status, origem: aluno.origem || 'Instagram' });
     } else {
       setEditId(null);
       setForm(initialForm);
@@ -52,8 +48,8 @@ export default function AlunosPage({ actionTrigger }) {
   const salvar = async (e) => {
     e.preventDefault();
     try {
-      if (editId) await api.put(`/alunos/${editId}`, form);
-      else await api.post('/alunos', form);
+      if (editId) await alunosApi.atualizar(editId, form);
+      else await alunosApi.criar(form);
       setModal(false);
       carregar();
     } catch (err) {
@@ -63,7 +59,7 @@ export default function AlunosPage({ actionTrigger }) {
 
   const excluir = async (id) => {
     if (!confirm('Excluir este aluno?')) return;
-    await api.delete(`/alunos/${id}`);
+    await alunosApi.excluir(id);
     carregar();
   };
 
@@ -106,8 +102,8 @@ export default function AlunosPage({ actionTrigger }) {
                     <td style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', fontWeight: 600 }}>{a.nome}</td>
                     <td style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)' }}>{a.email}</td>
                     <td style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)' }}>{a.telefone || ''}</td>
-                    <td style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)' }}>{a.curso?.nome || '--'}</td>
-                    <td style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)' }}>{fmtValor(a.curso?.valor)}</td>
+                    <td style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)' }}>{a.cursos?.nome || '--'}</td>
+                    <td style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)' }}>{fmtValor(a.cursos?.valor)}</td>
                     <td style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)' }}>
                       <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: ss.bg, color: ss.color }}>{STATUS_LABEL[a.status]}</span>
                     </td>
