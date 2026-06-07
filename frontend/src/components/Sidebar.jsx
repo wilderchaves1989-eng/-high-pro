@@ -9,8 +9,8 @@ const NAV_ITEMS = [
 ];
 
 export default function Sidebar({ activePage, onNavigate }) {
-  const { user, logout } = useAuthStore();
-  const initials = user?.nome?.split(' ').map((w) => w[0]).join('').substring(0, 2).toUpperCase() || '?';
+  const { profile, logout } = useAuthStore();
+  const initials = profile?.nome?.split(' ').map((w) => w[0]).join('').substring(0, 2).toUpperCase() || '?';
   const perfilLabel = { GESTOR: 'Gestor', ATENDIMENTO: 'Atendimento', PROFESSOR: 'Professor' };
 
   return (
@@ -25,7 +25,7 @@ export default function Sidebar({ activePage, onNavigate }) {
       <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 2 }}>
         <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-tertiary)', padding: '8px 8px 4px' }}>Principal</div>
         {NAV_ITEMS.map((item) => {
-          if (item.gestorOnly && user?.perfil !== 'GESTOR') return null;
+          if (item.gestorOnly && profile?.perfil !== 'GESTOR') return null;
           const isActive = activePage === item.key;
           return (
             <button
@@ -52,8 +52,8 @@ export default function Sidebar({ activePage, onNavigate }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 4 }}>
           <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg, var(--primary), var(--success))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 600, fontSize: 13, flexShrink: 0 }}>{initials}</div>
           <div style={{ overflow: 'hidden' }}>
-            <div style={{ fontWeight: 500, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.nome}</div>
-            <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{perfilLabel[user?.perfil] || user?.perfil}</div>
+            <div style={{ fontWeight: 500, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{profile?.nome}</div>
+            <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{perfilLabel[profile?.perfil] || profile?.perfil}</div>
           </div>
         </div>
         <button
