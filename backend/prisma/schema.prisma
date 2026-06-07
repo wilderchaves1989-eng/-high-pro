@@ -1,0 +1,115 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── UTILIZADORES ──────────────────────────────────────────────────
+model User {
+  id        Int      @id @default(autoincrement())
+  nome      String
+  email     String   @unique
+  senha     String
+  perfil    Role     @default(ATENDIMENTO)
+  ativo     Boolean  @default(true)
+  criadoEm  DateTime @default(now()) @map("criado_em")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  aulas Aula[] @relation("AulaProfessor")
+
+  @@map("users")
+}
+
+enum Role {
+  GESTOR
+  ATENDIMENTO
+  PROFESSOR
+}
+
+// ── CURSOS ────────────────────────────────────────────────────────
+model Curso {
+  id        Int      @id @default(autoincrement())
+  nome      String
+  processo  String?
+  carga     Int
+  valor     Decimal  @db.Decimal(10, 2)
+  nivel     String?
+  descricao String?
+  ativo     Boolean  @default(true)
+  criadoEm  DateTime @default(now()) @map("criado_em")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  alunos Aluno[]
+
+  @@map("cursos")
+}
+
+// ── ALUNOS ────────────────────────────────────────────────────────
+model Aluno {
+  id        Int          @id @default(autoincrement())
+  nome      String
+  email     String       @unique
+  telefone  String?
+  status    AlunoStatus  @default(LEAD)
+  origem    String?
+  cursoId   Int?         @map("curso_id")
+  criadoEm  DateTime     @default(now()) @map("criado_em")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  curso Curso? @relation(fields: [cursoId], references: [id], onDelete: SetNull)
+  aulas Aula[]
+
+  @@map("alunos")
+}
+
+enum AlunoStatus {
+  LEAD
+  AGENDOU_VISITA
+  MATRICULADO
+  CONCLUIDO
+  DESISTENTE
+}
+
+// ── AULAS / AGENDAMENTOS ─────────────────────────────────────────
+model Aula {
+  id          Int        @id @default(autoincrement())
+  alunoId     Int        @map("aluno_id")
+  professorId Int?       @map("professor_id")
+  tipo        AulaTipo   @default(PRATICA)
+  data        DateTime   @db.Date
+  hora        String
+  duracao     Int        @default(60)
+  estado      AulaEstado @default(CONFIRMADO)
+  notas       String?
+  criadoEm    DateTime   @default(now()) @map("criado_em")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  aluno     Aluno @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+  professor User? @relation("AulaProfessor", fields: [professorId], references: [id], onDelete: SetNull)
+
+  @@map("aulas")
+}
+
+enum AulaTipo {
+  PRATICA
+  TEORICA
+  VISITA_TECNICA
+}
+
+enum AulaEstado {
+  CONFIRMADO
+  PENDENTE
+  CANCELADO
+}
+
+// ── CONFIGURACAO DO SISTEMA ──────────────────────────────────────
+model Config {
+  id    Int    @id @default(autoincrement())
+  chave String @unique
+  valor String
+
+  @@map("config")
+}

@@ -1,0 +1,258 @@
+import React, { useEffect, useState } from 'react';
+import api from '../services/api';
+import Modal from '../components/Modal';
+
+const PROCESSOS = [
+  'SMAW (111) - Eletrodo Revestido',
+  'GMAW (135/136) - MIG/MAG',
+  'GTAW (141) - TIG',
+  'SAW (121) - Arco Submerso',
+  'FCAW (136/138) - Arame Tubular',
+  'OAW (311) - Oxiacetilenica',
+];
+
+const initialCurso = { nome: '', processo: '', carga: '', valor: '', nivel: '', descricao: '', ativo: true };
+const initialCred = { nome: '', email: '', senha: '', perfil: 'ATENDIMENTO', ativo: true };
+
+export default function ConfigPage() {
+  const [sistemaNome, setSistemaNome] = useState('High Pro');
+  const [cursos, setCursos] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [alunos, setAlunos] = useState([]);
+  const [modalCurso, setModalCurso] = useState(false);
+  const [modalCred, setModalCred] = useState(false);
+  const [cursoForm, setCursoForm] = useState(initialCurso);
+  const [credForm, setCredForm] = useState(initialCred);
+  const [editCursoId, setEditCursoId] = useState(null);
+  const [editCredId, setEditCredId] = useState(null);
+
+  useEffect(() => {
+    api.get('/config').then((r) => setSistemaNome(r.data.sistemaNome || 'High Pro')).catch(() => {});
+    api.get('/cursos').then((r) => setCursos(r.data)).catch(() => {});
+    api.get('/users').then((r) => setUsers(r.data)).catch(() => {});
+    api.get('/alunos').then((r) => setAlunos(r.data)).catch(() => {});
+  }, []);
+
+  const salvarNome = () => {
+    api.put('/config', { sistemaNome }).catch(() => {});
+  };
+
+  // Cursos
+  const abrirCurso = (c) => {
+    if (c) {
+      setEditCursoId(c.id);
+      setCursoForm({ nome: c.nome, processo: c.processo || '', carga: c.carga, valor: c.valor, nivel: c.nivel || '', descricao: c.descricao || '', ativo: c.ativo });
+    } else {
+      setEditCursoId(null);
+      setCursoForm(initialCurso);
+    }
+    setModalCurso(true);
+  };
+
+  const salvarCurso = async (e) => {
+    e.preventDefault();
+    try {
+      if (editCursoId) await api.put(`/cursos/${editCursoId}`, cursoForm);
+      else await api.post('/cursos', cursoForm);
+      setModalCurso(false);
+      const r = await api.get('/cursos');
+      setCursos(r.data);
+    } catch (err) { alert(err.response?.data?.error || 'Erro'); }
+  };
+
+  const excluirCurso = async (id) => {
+    if (!confirm('Remover curso?')) return;
+    await api.delete(`/cursos/${id}`);
+    const r = await api.get('/cursos');
+    setCursos(r.data);
+  };
+
+  // Credenciais
+  const abrirCred = (c) => {
+    if (c) {
+      setEditCredId(c.id);
+      setCredForm({ nome: c.nome, email: c.email, senha: '', perfil: c.perfil, ativo: c.ativo });
+    } else {
+      setEditCredId(null);
+      setCredForm(initialCred);
+    }
+    setModalCred(true);
+  };
+
+  const salvarCred = async (e) => {
+    e.preventDefault();
+    try {
+      const data = { ...credForm };
+      if (!data.senha && editCredId) delete data.senha;
+      if (editCredId) await api.put(`/users/${editCredId}`, data);
+      else await api.post('/users', data);
+      setModalCred(false);
+      const r = await api.get('/users');
+      setUsers(r.data);
+    } catch (err) { alert(err.response?.data?.error || 'Erro'); }
+  };
+
+  const excluirCred = async (id) => {
+    if (!confirm('Remover credencial?')) return;
+    await api.delete(`/users/${id}`);
+    const r = await api.get('/users');
+    setUsers(r.data);
+  };
+
+  const fmtValor = (v) => `EUR ${Number(v).toLocaleString('pt-PT', { minimumFractionDigits: 2 })}`;
+  const perfilLabel = { GESTOR: 'Gestao Geral', ATENDIMENTO: 'Atendimento', PROFESSOR: 'Professor' };
+  const inputStyle = { width: '100%', padding: '8px 12px', border: '1px solid var(--border)', borderRadius: 4, fontFamily: 'inherit', fontSize: 14, outline: 'none' };
+  const thStyle = { textAlign: 'left', padding: '12px 16px', fontWeight: 500, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.3, color: 'var(--text-tertiary)', borderBottom: '1px solid var(--border)', background: 'var(--background)' };
+  const tdStyle = { padding: '10px 16px', borderBottom: '1px solid var(--border)' };
+
+  return (
+    <div style={{ padding: 24, overflowY: 'auto', height: '100%' }}>
+      {/* Nome empresa */}
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, marginBottom: 16, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', fontWeight: 500 }}>Nome da Empresa</div>
+        <div style={{ padding: '16px 20px' }}>
+          <input value={sistemaNome} onChange={(e) => setSistemaNome(e.target.value)} onBlur={salvarNome} style={inputStyle} />
+        </div>
+      </div>
+
+      {/* Cursos */}
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, marginBottom: 16, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span>Cursos e Valores</span>
+          <button onClick={() => abrirCurso()} style={{ padding: '6px 14px', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 4, fontSize: 12, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer' }}>+ Novo Curso</button>
+        </div>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead><tr>{['Curso', 'Processo', 'Carga', 'Valor', 'Alunos', 'Estado', 'Acoes'].map((h) => <th key={h} style={thStyle}>{h}</th>)}</tr></thead>
+            <tbody>
+              {cursos.map((c) => (
+                <tr key={c.id}>
+                  <td style={{ ...tdStyle, fontWeight: 600 }}>{c.nome}</td>
+                  <td style={{ ...tdStyle, fontSize: 12 }}>{c.processo || '--'}</td>
+                  <td style={tdStyle}>{c.carga}h</td>
+                  <td style={{ ...tdStyle, fontWeight: 600 }}>{fmtValor(c.valor)}</td>
+                  <td style={tdStyle}>{c._count?.alunos || 0}</td>
+                  <td style={tdStyle}>
+                    <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: c.ativo ? '#E6F9F3' : '#FFE6E9', color: c.ativo ? '#00A86B' : '#E2445C' }}>{c.ativo ? 'Ativo' : 'Inativo'}</span>
+                  </td>
+                  <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
+                    <button onClick={() => abrirCurso(c)} style={{ padding: '2px 8px', background: 'transparent', border: 'none', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', color: 'var(--text-secondary)' }}>Editar</button>
+                    <button onClick={() => excluirCurso(c.id)} style={{ padding: '2px 8px', background: 'transparent', border: 'none', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', color: 'var(--danger)' }}>x</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Credenciais */}
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span>Credenciais de Acesso</span>
+          <button onClick={() => abrirCred()} style={{ padding: '6px 14px', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 4, fontSize: 12, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer' }}>+ Criar Acesso</button>
+        </div>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead><tr>{['Nome', 'Email', 'Perfil', 'Estado', 'Acoes'].map((h) => <th key={h} style={thStyle}>{h}</th>)}</tr></thead>
+            <tbody>
+              {users.map((u) => (
+                <tr key={u.id}>
+                  <td style={{ ...tdStyle, fontWeight: 600 }}>{u.nome}</td>
+                  <td style={tdStyle}>{u.email}</td>
+                  <td style={tdStyle}>{perfilLabel[u.perfil] || u.perfil}</td>
+                  <td style={tdStyle}>
+                    <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: u.ativo ? '#E6F9F3' : '#FFE6E9', color: u.ativo ? '#00A86B' : '#E2445C' }}>{u.ativo ? 'Ativo' : 'Inativo'}</span>
+                  </td>
+                  <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
+                    <button onClick={() => abrirCred(u)} style={{ padding: '2px 8px', background: 'transparent', border: 'none', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', color: 'var(--text-secondary)' }}>Editar</button>
+                    <button onClick={() => excluirCred(u.id)} style={{ padding: '2px 8px', background: 'transparent', border: 'none', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', color: 'var(--danger)' }}>x</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Modal Curso */}
+      <Modal open={modalCurso} onClose={() => setModalCurso(false)} title={editCursoId ? 'Editar Curso' : 'Novo Curso'} maxWidth={600}>
+        <form onSubmit={salvarCurso}>
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 }}>Nome do Curso <span style={{ color: 'var(--danger)' }}>*</span></label>
+            <input required value={cursoForm.nome} onChange={(e) => setCursoForm({ ...cursoForm, nome: e.target.value })} placeholder="Ex: Eletrodo Revestido Basico" style={inputStyle} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 }}>Processo</label>
+              <select value={cursoForm.processo} onChange={(e) => setCursoForm({ ...cursoForm, processo: e.target.value })} style={{ ...inputStyle, cursor: 'pointer' }}>
+                <option value="">Selecione...</option>
+                {PROCESSOS.map((p) => <option key={p}>{p}</option>)}
+              </select>
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 }}>Carga Horaria <span style={{ color: 'var(--danger)' }}>*</span></label>
+              <input required type="number" min="1" value={cursoForm.carga} onChange={(e) => setCursoForm({ ...cursoForm, carga: e.target.value })} placeholder="Horas" style={inputStyle} />
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 }}>Valor (EUR) <span style={{ color: 'var(--danger)' }}>*</span></label>
+              <input required type="number" step="0.01" min="0" value={cursoForm.valor} onChange={(e) => setCursoForm({ ...cursoForm, valor: e.target.value })} placeholder="0,00" style={inputStyle} />
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 }}>Nivel</label>
+              <select value={cursoForm.nivel} onChange={(e) => setCursoForm({ ...cursoForm, nivel: e.target.value })} style={{ ...inputStyle, cursor: 'pointer' }}>
+                <option value="">Selecione...</option>
+                {['Iniciante', 'Intermediario', 'Avancado', 'Profissional'].map((n) => <option key={n}>{n}</option>)}
+              </select>
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 }}>Estado</label>
+              <select value={cursoForm.ativo} onChange={(e) => setCursoForm({ ...cursoForm, ativo: e.target.value === 'true' })} style={{ ...inputStyle, cursor: 'pointer' }}>
+                <option value="true">Ativo</option>
+                <option value="false">Inativo</option>
+              </select>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+            <button type="button" onClick={() => setModalCurso(false)} style={{ flex: 1, padding: 10, background: 'transparent', border: '1px solid var(--border)', borderRadius: 4, fontSize: 14, fontFamily: 'inherit', cursor: 'pointer' }}>Cancelar</button>
+            <button type="submit" style={{ flex: 1, padding: 10, background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 4, fontSize: 14, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer' }}>Guardar Curso</button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal Credencial */}
+      <Modal open={modalCred} onClose={() => setModalCred(false)} title={editCredId ? 'Editar Credencial' : 'Criar Credencial'} maxWidth={550}>
+        <form onSubmit={salvarCred}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 }}>Nome <span style={{ color: 'var(--danger)' }}>*</span></label>
+              <input required value={credForm.nome} onChange={(e) => setCredForm({ ...credForm, nome: e.target.value })} style={inputStyle} />
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 }}>Email <span style={{ color: 'var(--danger)' }}>*</span></label>
+              <input required type="email" value={credForm.email} onChange={(e) => setCredForm({ ...credForm, email: e.target.value })} style={inputStyle} />
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 }}>Senha {!editCredId && <span style={{ color: 'var(--danger)' }}>*</span>}</label>
+              <input type="password" required={!editCredId} value={credForm.senha} onChange={(e) => setCredForm({ ...credForm, senha: e.target.value })} placeholder={editCredId ? 'Deixe vazio para manter' : ''} style={inputStyle} />
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 }}>Perfil</label>
+              <select value={credForm.perfil} onChange={(e) => setCredForm({ ...credForm, perfil: e.target.value })} style={{ ...inputStyle, cursor: 'pointer' }}>
+                <option value="GESTOR">Gestao Geral</option>
+                <option value="ATENDIMENTO">Atendimento</option>
+                <option value="PROFESSOR">Professor</option>
+              </select>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+            <button type="button" onClick={() => setModalCred(false)} style={{ flex: 1, padding: 10, background: 'transparent', border: '1px solid var(--border)', borderRadius: 4, fontSize: 14, fontFamily: 'inherit', cursor: 'pointer' }}>Cancelar</button>
+            <button type="submit" style={{ flex: 1, padding: 10, background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 4, fontSize: 14, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer' }}>Guardar</button>
+          </div>
+        </form>
+      </Modal>
+    </div>
+  );
+}
