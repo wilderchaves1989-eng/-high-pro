@@ -51,6 +51,18 @@ export default function AgendaPage({ actionTrigger }) {
     }
   };
 
+  const excluir = async () => {
+    if (!editId) return;
+    if (!window.confirm('Tem certeza que quer excluir este agendamento?')) return;
+    try {
+      await aulasApi.excluir(editId);
+      setModal(false);
+      carregar();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Erro ao excluir');
+    }
+  };
+
   // Calendar rendering
   const ano = calDate.getFullYear(), mes = calDate.getMonth();
   const primeiroDia = new Date(ano, mes, 1).getDay();
@@ -188,7 +200,10 @@ export default function AgendaPage({ actionTrigger }) {
               </select>
             </div>
           </div>
-          <button type="submit" style={{ width: '100%', padding: 10, background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 4, fontSize: 14, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer', marginTop: 8 }}>Guardar</button>
+          <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+            <button type="submit" style={{ flex: 1, padding: 10, background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 4, fontSize: 14, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer' }}>Guardar</button>
+            {editId && <button type="button" onClick={excluir} style={{ padding: '10px 16px', background: 'var(--danger)', color: '#fff', border: 'none', borderRadius: 4, fontSize: 14, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer' }}>Excluir</button>}
+          </div>
         </form>
       </Modal>
     </div>
