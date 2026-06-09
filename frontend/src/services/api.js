@@ -20,6 +20,8 @@ export const alunos = {
       curso_id: dados.cursoId ? parseInt(dados.cursoId) : null,
       status: dados.status || 'LEAD',
       origem: dados.origem || null,
+      faixa_etaria: dados.faixaEtaria || null,
+      profissao: dados.profissao || null,
     }]).select('*, cursos(id, nome, valor)').single();
     if (error) throw error;
     return data;
@@ -33,6 +35,8 @@ export const alunos = {
     if (dados.cursoId !== undefined) update.curso_id = dados.cursoId ? parseInt(dados.cursoId) : null;
     if (dados.status) update.status = dados.status;
     if (dados.origem !== undefined) update.origem = dados.origem;
+    if (dados.faixaEtaria !== undefined) update.faixa_etaria = dados.faixaEtaria;
+    if (dados.profissao !== undefined) update.profissao = dados.profissao;
 
     const { data, error } = await supabase.from('alunos').update(update).eq('id', id).select('*, cursos(id, nome, valor)').single();
     if (error) throw error;
@@ -212,6 +216,21 @@ export const dashboard = {
       return { total_alunos: a.count || 0, agenda_hoje: h.count || 0, cursos_ativos: c.count || 0 };
     }
     return data;
+  },
+
+  async cursoStats() {
+    const { data, error } = await supabase.from('alunos').select('curso_id, cursos(id, nome)').eq('status', 'MATRICULADO').order('curso_id');
+    if (error) return [];
+
+    const stats = {};
+    data?.forEach(a => {
+      const cursoNome = a.cursos?.nome || 'Sem Curso';
+      stats[cursoNome] = (stats[cursoNome] || 0) + 1;
+    });
+
+    return Object.entries(stats)
+      .map(([nome, count]) => ({ nome, count }))
+      .sort((a, b) => b.count - a.count);
   },
 };
 
