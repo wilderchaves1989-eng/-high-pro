@@ -13,7 +13,9 @@ const STATUS_STYLES = {
 
 const STATUS_LABEL = { LEAD: 'Lead', AGENDOU_VISITA: 'Agendou Visita', MATRICULADO: 'Matriculado', CONCLUIDO: 'Concluido', DESISTENTE: 'Desistente' };
 
-const initialForm = { nome: '', email: '', telefone: '', cursoId: '', status: 'LEAD', origem: 'Instagram' };
+const FAIXA_ETARIA_OPTIONS = ['18 - 24 anos', '25 - 34 anos', '35 - 44 anos', '45 - 54 anos', '55+ anos'];
+
+const initialForm = { nome: '', email: '', telefone: '', cursoId: '', status: 'LEAD', origem: 'Instagram', faixaEtaria: '', profissao: '' };
 
 export default function AlunosPage({ actionTrigger }) {
   const [alunos, setAlunos] = useState([]);
@@ -37,7 +39,7 @@ export default function AlunosPage({ actionTrigger }) {
   const abrirModal = (aluno) => {
     if (aluno) {
       setEditId(aluno.id);
-      setForm({ nome: aluno.nome, email: aluno.email, telefone: aluno.telefone || '', cursoId: aluno.curso_id || '', status: aluno.status, origem: aluno.origem || 'Instagram' });
+      setForm({ nome: aluno.nome, email: aluno.email, telefone: aluno.telefone || '', cursoId: aluno.curso_id || '', status: aluno.status, origem: aluno.origem || 'Instagram', faixaEtaria: aluno.faixa_etaria || '', profissao: aluno.profissao || '' });
     } else {
       setEditId(null);
       setForm(initialForm);
@@ -154,6 +156,19 @@ export default function AlunosPage({ actionTrigger }) {
               <select value={form.origem} onChange={(e) => setForm({ ...form, origem: e.target.value })} style={{ ...inputStyle, cursor: 'pointer' }}>
                 {['Instagram', 'Facebook', 'Google', 'Indicacao', 'Outros'].map((o) => <option key={o}>{o}</option>)}
               </select>
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 }}>Faixa Etaria</label>
+              <select value={form.faixaEtaria} onChange={(e) => setForm({ ...form, faixaEtaria: e.target.value })} style={{ ...inputStyle, cursor: 'pointer' }}>
+                <option value="">Selecione...</option>
+                {FAIXA_ETARIA_OPTIONS.map((f) => <option key={f}>{f}</option>)}
+              </select>
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 }}>Profissao Exercida</label>
+              <input value={form.profissao} onChange={(e) => setForm({ ...form, profissao: e.target.value })} placeholder="Ex: Serralheiro, Desempregado, Estudante..." style={inputStyle} />
             </div>
           </div>
           <button type="submit" style={{ width: '100%', padding: 10, background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 4, fontSize: 14, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer', marginTop: 8 }}>Guardar</button>
