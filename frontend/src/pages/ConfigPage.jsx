@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { cursos as cursosApi, users as usersApi, alunos as alunosApi, config as configApi } from '../services/api';
 import Modal from '../components/Modal';
+import { CalculadoraPacotes } from './CalculadoraPage';
 
 const PROCESSOS = [
   'SMAW (111) - Eletrodo Revestido',
@@ -21,6 +22,7 @@ export default function ConfigPage() {
   const [alunos, setAlunos] = useState([]);
   const [modalCurso, setModalCurso] = useState(false);
   const [modalCred, setModalCred] = useState(false);
+  const [modalCalc, setModalCalc] = useState(false);
   const [cursoForm, setCursoForm] = useState(initialCurso);
   const [credForm, setCredForm] = useState(initialCred);
   const [editCursoId, setEditCursoId] = useState(null);
@@ -116,7 +118,10 @@ export default function ConfigPage() {
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, marginBottom: 16, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span>Cursos e Valores</span>
-          <button onClick={() => abrirCurso()} style={{ padding: '6px 14px', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 4, fontSize: 12, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer' }}>+ Novo Curso</button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => setModalCalc(true)} style={{ padding: '6px 14px', background: 'transparent', color: 'var(--primary)', border: '1px solid var(--primary)', borderRadius: 4, fontSize: 12, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer' }}>Calculadora de Pacotes</button>
+            <button onClick={() => abrirCurso()} style={{ padding: '6px 14px', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 4, fontSize: 12, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer' }}>+ Novo Curso</button>
+          </div>
         </div>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
@@ -217,6 +222,11 @@ export default function ConfigPage() {
             <button type="submit" style={{ flex: 1, padding: 10, background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 4, fontSize: 14, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer' }}>Guardar Curso</button>
           </div>
         </form>
+      </Modal>
+
+      {/* Modal Calculadora de Pacotes */}
+      <Modal open={modalCalc} onClose={() => setModalCalc(false)} title="Calculadora de Pacotes" maxWidth={820}>
+        <CalculadoraPacotes empresa={sistemaNome} />
       </Modal>
 
       {/* Modal Credencial */}
