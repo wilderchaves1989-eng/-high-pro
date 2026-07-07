@@ -14,6 +14,7 @@ export default function AgendaPage({ actionTrigger }) {
   const [calDate, setCalDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [modal, setModal] = useState(false);
+  const [diaAberto, setDiaAberto] = useState(null);
   const [form, setForm] = useState(initialForm);
   const [editId, setEditId] = useState(null);
   const [filtros, setFiltros] = useState({ PRATICA: true, TEORICA: true, VISITA_TECNICA: true });
@@ -28,14 +29,15 @@ export default function AgendaPage({ actionTrigger }) {
   useEffect(() => { alunosApi.listar().then(setAlunos).catch(() => {}); }, []);
   useEffect(() => { if (actionTrigger > 0) abrirModal(); }, [actionTrigger]);
 
-  const abrirModal = (aula) => {
+  const abrirModal = (aula, dataNova) => {
     if (aula) {
       setEditId(aula.id);
-      setForm({ alunoId: aula.alunoId, tipo: aula.tipo, data: aula.data?.split('T')[0], hora: aula.hora, duracao: aula.duracao, estado: aula.estado });
+      setForm({ alunoId: aula.aluno_id || aula.aluno?.id || '', tipo: aula.tipo, data: aula.data?.split('T')[0], hora: aula.hora, duracao: aula.duracao, estado: aula.estado });
     } else {
       setEditId(null);
-      setForm({ ...initialForm, data: selectedDate });
+      setForm({ ...initialForm, data: dataNova || selectedDate });
     }
+    setDiaAberto(null);
     setModal(true);
   };
 
@@ -47,7 +49,7 @@ export default function AgendaPage({ actionTrigger }) {
       setModal(false);
       carregar();
     } catch (err) {
-      alert(err.response?.data?.error || 'Erro');
+      alert(err.message || 'Erro');
     }
   };
 
@@ -59,7 +61,7 @@ export default function AgendaPage({ actionTrigger }) {
       setModal(false);
       carregar();
     } catch (err) {
-      alert(err.response?.data?.error || 'Erro ao excluir');
+      alert(err.message || 'Erro ao excluir');
     }
   };
 
@@ -74,6 +76,11 @@ export default function AgendaPage({ actionTrigger }) {
 
   // Upcoming
   const proximas = aulasFiltradas.filter((a) => (a.data?.split('T')[0] || '') >= hoje && a.estado !== 'CANCELADO').sort((a, b) => (a.data + a.hora).localeCompare(b.data + b.hora)).slice(0, 8);
+
+  // Aulas do dia aberto no modal (ordenadas por hora)
+  const aulasDoDia = diaAberto
+    ? aulasFiltradas.filter((a) => (a.data?.split('T')[0] || '') === diaAberto).sort((a, b) => (a.hora || '').localeCompare(b.hora || ''))
+    : [];
 
   const inputStyle = { width: '100%', padding: '8px 12px', border: '1px solid var(--border)', borderRadius: 4, fontFamily: 'inherit', fontSize: 14, outline: 'none' };
 
@@ -148,7 +155,7 @@ export default function AgendaPage({ actionTrigger }) {
             const isHoje = ds === hoje;
             const evs = aulasFiltradas.filter((a) => (a.data?.split('T')[0] || '') === ds);
             return (
-              <div key={dia} onClick={() => { setSelectedDate(ds); abrirModal(); }} style={{ background: isHoje ? '#F0F4FF' : 'var(--surface)', minHeight: 100, padding: 6, cursor: 'pointer', overflow: 'hidden' }}>
+              <div key={dia} onClick={() => { setSelectedDate(ds); setDiaAberto(ds); }} style={{ background: isHoje ? '#F0F4FF' : 'var(--surface)', minHeight: 100, padding: 6, cursor: 'pointer', overflow: 'hidden' }}>
                 <span style={{ fontSize: 13, fontWeight: 500, padding: '2px 6px', display: 'inline-block', ...(isHoje ? { background: 'var(--primary)', color: '#fff', borderRadius: 12 } : {}) }}>{dia}</span>
                 {evs.slice(0, 4).map((e) => {
                   const tc = TIPO_CLS[e.tipo] || TIPO_CLS.PRATICA;
@@ -163,6 +170,34 @@ export default function AgendaPage({ actionTrigger }) {
           })}
         </div>
       </div>
+
+      {/* Modal do dia: lista de alunos do dia */}
+      <Modal
+        open={!!diaAberto}
+        onClose={() => setDiaAberto(null)}
+        title={diaAberto ? `Alunos de ${new Date(diaAberto + 'T00:00:00').toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long' })}` : ''}
+        maxWidth={560}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {aulasDoDia.length ? aulasDoDia.map((a) => {
+            const tc = TIPO_CLS[a.tipo] || TIPO_CLS.PRATICA;
+            return (
+              <div key={a.id} onClick={() => abrirModal(a)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)', borderLeft: `3px solid ${tc.dot}`, cursor: 'pointer', background: 'var(--surface)' }}>
+                <div style={{ fontWeight: 700, fontSize: 15, minWidth: 52 }}>{a.hora}</div>
+                <div style={{ flex: 1, overflow: 'hidden' }}>
+                  <div style={{ fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.aluno?.nome || 'Aluno'}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{TIPO_LABEL[a.tipo]} — {a.duracao}min</div>
+                </div>
+                <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: tc.bg, color: tc.color }}>{ESTADO_LABEL[a.estado] || a.estado}</span>
+                <span style={{ color: 'var(--primary)', fontSize: 12, fontWeight: 500 }}>Editar</span>
+              </div>
+            );
+          }) : (
+            <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-tertiary)' }}>Nenhum aluno agendado neste dia.</div>
+          )}
+        </div>
+        <button onClick={() => abrirModal(null, diaAberto)} style={{ width: '100%', marginTop: 16, padding: 11, background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 4, fontSize: 14, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>+ Novo agendamento neste dia</button>
+      </Modal>
 
       {/* Modal */}
       <Modal open={modal} onClose={() => setModal(false)} title={editId ? 'Editar Agendamento' : 'Novo Agendamento'} maxWidth={550}>
