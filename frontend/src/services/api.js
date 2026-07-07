@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 // ── ALUNOS ──────────────────────────────────────────────────
 export const alunos = {
   async listar({ busca, cursoId, status } = {}) {
-    let query = supabase.from('alunos').select('*, cursos(id, nome, valor)').order('criado_em', { ascending: false });
+    let query = supabase.from('alunos').select('*, cursos(id, nome, valor, carga)').order('criado_em', { ascending: false });
     if (busca) query = query.or(`nome.ilike.%${busca}%,email.ilike.%${busca}%,telefone.ilike.%${busca}%`);
     if (cursoId) query = query.eq('curso_id', cursoId);
     if (status) query = query.eq('status', status);
@@ -22,7 +22,7 @@ export const alunos = {
       origem: dados.origem || null,
       faixa_etaria: dados.faixaEtaria || null,
       profissao: dados.profissao || null,
-    }]).select('*, cursos(id, nome, valor)').single();
+    }]).select('*, cursos(id, nome, valor, carga)').single();
     if (error) throw error;
     return data;
   },
@@ -38,7 +38,7 @@ export const alunos = {
     if (dados.faixaEtaria !== undefined) update.faixa_etaria = dados.faixaEtaria;
     if (dados.profissao !== undefined) update.profissao = dados.profissao;
 
-    const { data, error } = await supabase.from('alunos').update(update).eq('id', id).select('*, cursos(id, nome, valor)').single();
+    const { data, error } = await supabase.from('alunos').update(update).eq('id', id).select('*, cursos(id, nome, valor, carga)').single();
     if (error) throw error;
     return data;
   },
@@ -159,6 +159,23 @@ export const aulas = {
   async excluir(id) {
     const { error } = await supabase.from('aulas').delete().eq('id', id);
     if (error) throw error;
+  },
+
+  // Cria varias aulas de uma vez (distribuicao automatica de horarios)
+  async criarVarias(rows) {
+    const payload = rows.map((r) => ({
+      aluno_id: parseInt(r.alunoId),
+      professor_id: r.professorId || null,
+      tipo: r.tipo || 'PRATICA',
+      data: r.data,
+      hora: r.hora,
+      duracao: parseInt(r.duracao) || 60,
+      estado: r.estado || 'CONFIRMADO',
+      notas: r.notas || null,
+    }));
+    const { data, error } = await supabase.from('aulas').insert(payload).select('*, alunos!inner(id, nome), profiles(id, nome)');
+    if (error) throw error;
+    return data;
   },
 };
 
