@@ -5,11 +5,13 @@ import Dashboard from '../pages/Dashboard';
 import AlunosPage from '../pages/AlunosPage';
 import AgendaPage from '../pages/AgendaPage';
 import ConfigPage from '../pages/ConfigPage';
+import FinanceiroPage from '../pages/FinanceiroPage';
 
 const PAGES = {
   dashboard: { title: 'Dashboard', component: Dashboard, action: '+ Novo Aluno' },
   alunos: { title: 'Alunos', component: AlunosPage, action: '+ Novo Aluno' },
   agenda: { title: 'Agenda', component: AgendaPage, action: '+ Agendar' },
+  financeiro: { title: 'Financeiro', component: FinanceiroPage, action: null },
   configuracoes: { title: 'Configuracoes', component: ConfigPage, action: null },
 };
 
