@@ -234,60 +234,33 @@ export const dashboard = {
   },
 };
 
-// ── PAGAMENTOS (Financeiro) ─────────────────────────────────
-export const pagamentos = {
+// ── LANCAMENTOS (Financeiro interno) ────────────────────────
+export const lancamentos = {
   async listar(alunoId) {
     let query = supabase
-      .from('pagamentos')
+      .from('lancamentos')
       .select('*, alunos!inner(id, nome, telefone, curso_id, cursos(id, nome, valor))')
-      .order('vencimento', { ascending: true, nullsFirst: false });
+      .order('data', { ascending: false });
     if (alunoId) query = query.eq('aluno_id', alunoId);
     const { data, error } = await query;
     if (error) throw error;
-    return data.map((p) => ({ ...p, aluno: p.alunos, curso: p.alunos?.cursos }));
+    return data.map((l) => ({ ...l, aluno: l.alunos, curso: l.alunos?.cursos }));
   },
 
   async criar(dados) {
-    const { data, error } = await supabase.from('pagamentos').insert([{
+    const { data, error } = await supabase.from('lancamentos').insert([{
       aluno_id: parseInt(dados.alunoId),
+      data: dados.data || new Date().toISOString().split('T')[0],
       descricao: dados.descricao || null,
       valor: parseFloat(dados.valor) || 0,
-      vencimento: dados.vencimento || null,
-      pago: !!dados.pago,
-      data_pagamento: dados.pago ? (dados.dataPagamento || new Date().toISOString().split('T')[0]) : null,
       metodo: dados.metodo || null,
     }]).select().single();
     if (error) throw error;
     return data;
   },
 
-  // Cria varias parcelas de uma vez (plano de pagamento)
-  async criarPlano(alunoId, parcelas) {
-    const rows = parcelas.map((p) => ({
-      aluno_id: parseInt(alunoId),
-      descricao: p.descricao || null,
-      valor: parseFloat(p.valor) || 0,
-      vencimento: p.vencimento || null,
-      pago: false,
-      metodo: null,
-    }));
-    const { data, error } = await supabase.from('pagamentos').insert(rows).select();
-    if (error) throw error;
-    return data;
-  },
-
-  async marcarPago(id, pago, metodo) {
-    const { data, error } = await supabase.from('pagamentos').update({
-      pago,
-      data_pagamento: pago ? new Date().toISOString().split('T')[0] : null,
-      metodo: pago ? (metodo || null) : null,
-    }).eq('id', id).select().single();
-    if (error) throw error;
-    return data;
-  },
-
   async excluir(id) {
-    const { error } = await supabase.from('pagamentos').delete().eq('id', id);
+    const { error } = await supabase.from('lancamentos').delete().eq('id', id);
     if (error) throw error;
   },
 };
