@@ -1,20 +1,33 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { cursos as cursosApi, config as configApi } from '../services/api';
+import { cursos as cursosApi, alunos as alunosApi, config as configApi } from '../services/api';
 
 const fmtEUR = (v) => `EUR ${Number(v || 0).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const toYMD = (dt) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+const daquiDias = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return toYMD(d); };
+const fmtDataBR = (ymd) => (ymd ? new Date(ymd + 'T00:00:00').toLocaleDateString('pt-PT') : '');
 
 // ============================================================
 // Componente reutilizavel: montador de pacotes personalizados
 // ============================================================
 export function CalculadoraPacotes({ empresa = 'High Pro' }) {
   const [cursos, setCursos] = useState([]);
+  const [alunos, setAlunos] = useState([]);
   const [itens, setItens] = useState([]);
   const [nomePacote, setNomePacote] = useState('');
   const [descontoPct, setDescontoPct] = useState('');
   const [addSel, setAddSel] = useState('');
+  const [cliente, setCliente] = useState({ id: '', nome: '', email: '', telefone: '' });
+  const [validade, setValidade] = useState(daquiDias(15));
 
   useEffect(() => { cursosApi.listar().then(setCursos).catch(() => {}); }, []);
+  useEffect(() => { alunosApi.listar().then(setAlunos).catch(() => {}); }, []);
+
+  const escolherAluno = (id) => {
+    const a = alunos.find((x) => String(x.id) === String(id));
+    if (a) setCliente({ id: a.id, nome: a.nome, email: a.email || '', telefone: a.telefone || '' });
+    else setCliente({ id: '', nome: '', email: '', telefone: '' });
+  };
 
   const addCurso = (id) => {
     const c = cursos.find((x) => String(x.id) === String(id));
@@ -37,6 +50,32 @@ export function CalculadoraPacotes({ empresa = 'High Pro' }) {
     return { totalHoras, subtotal, pct, descontoValor, total, valorHora };
   }, [itens, descontoPct]);
 
+  // Texto da proposta para WhatsApp / Email
+  const montarTexto = () => {
+    const linhas = itens.map((i) => `- ${i.nome || 'Item'}: ${Number(i.horas || 0)}h - ${fmtEUR(i.valor)}`).join('\n');
+    const p = [];
+    if (cliente.nome) p.push(`Ola ${cliente.nome}!`);
+    p.push(`Proposta ${empresa}${nomePacote ? ' - ' + nomePacote : ''}:`);
+    p.push(linhas);
+    if (totais.pct > 0) p.push(`Subtotal: ${fmtEUR(totais.subtotal)} | Desconto ${totais.pct}%: -${fmtEUR(totais.descontoValor)}`);
+    p.push(`Total: ${fmtEUR(totais.total)} (${totais.totalHoras}h)`);
+    if (validade) p.push(`Proposta valida ate ${fmtDataBR(validade)}.`);
+    return p.join('\n');
+  };
+
+  const enviarWhatsapp = () => {
+    let tel = (cliente.telefone || '').replace(/\D/g, '');
+    if (!tel) { alert('Informe o telefone do aluno (selecione o aluno ou preencha).'); return; }
+    if (tel.length === 9) tel = '351' + tel; // assume Portugal se vier sem indicativo
+    window.open(`https://wa.me/${tel}?text=${encodeURIComponent(montarTexto())}`, '_blank');
+  };
+
+  const enviarEmail = () => {
+    if (!cliente.email) { alert('Informe o email do aluno (selecione o aluno ou preencha).'); return; }
+    const assunto = `Proposta ${empresa}${nomePacote ? ' - ' + nomePacote : ''}`;
+    window.location.href = `mailto:${cliente.email}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(montarTexto())}`;
+  };
+
   const inputStyle = { width: '100%', padding: '8px 12px', border: '1px solid var(--border)', borderRadius: 4, fontFamily: 'inherit', fontSize: 14, outline: 'none' };
   const thStyle = { textAlign: 'left', padding: '10px 12px', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.3, color: 'var(--text-tertiary)', background: 'var(--background)', borderBottom: '1px solid var(--border)' };
   const tdStyle = { padding: '8px 12px', borderBottom: '1px solid var(--border)' };
@@ -57,6 +96,29 @@ export function CalculadoraPacotes({ empresa = 'High Pro' }) {
           </select>
         </div>
         <button onClick={addManual} style={{ padding: '9px 14px', background: 'transparent', border: '1px solid var(--primary)', color: 'var(--primary)', borderRadius: 4, fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>+ Linha manual</button>
+      </div>
+
+      {/* Cliente + validade */}
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 16 }}>
+        <div style={{ flex: 1, minWidth: 160 }}>
+          <label style={{ display: 'block', fontSize: 12, marginBottom: 4 }}>Aluno / Cliente</label>
+          <select value={cliente.id} onChange={(e) => escolherAluno(e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
+            <option value="">Selecione ou preencha...</option>
+            {alunos.map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}
+          </select>
+        </div>
+        <div style={{ flex: 1, minWidth: 150 }}>
+          <label style={{ display: 'block', fontSize: 12, marginBottom: 4 }}>Email</label>
+          <input value={cliente.email} onChange={(e) => setCliente({ ...cliente, email: e.target.value })} placeholder="email@exemplo.com" style={inputStyle} />
+        </div>
+        <div style={{ flex: 1, minWidth: 130 }}>
+          <label style={{ display: 'block', fontSize: 12, marginBottom: 4 }}>Telefone</label>
+          <input value={cliente.telefone} onChange={(e) => setCliente({ ...cliente, telefone: e.target.value })} placeholder="+351 912 345 678" style={inputStyle} />
+        </div>
+        <div style={{ minWidth: 150 }}>
+          <label style={{ display: 'block', fontSize: 12, marginBottom: 4 }}>Validade da proposta</label>
+          <input type="date" value={validade} onChange={(e) => setValidade(e.target.value)} style={inputStyle} />
+        </div>
       </div>
 
       {/* Itens */}
@@ -96,13 +158,30 @@ export function CalculadoraPacotes({ empresa = 'High Pro' }) {
         </div>
       </div>
 
-      <button
-        onClick={() => gerarProposta({ empresa, nomePacote, itens, totais })}
-        disabled={itens.length === 0}
-        style={{ width: '100%', marginTop: 16, padding: 12, background: itens.length ? 'var(--primary)' : 'var(--border)', color: '#fff', border: 'none', borderRadius: 4, fontSize: 14, fontWeight: 600, fontFamily: 'inherit', cursor: itens.length ? 'pointer' : 'not-allowed' }}
-      >
-        Exportar Proposta (PDF)
-      </button>
+      <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
+        <button
+          onClick={() => gerarProposta({ empresa, nomePacote, itens, totais, validade, cliente })}
+          disabled={itens.length === 0}
+          style={{ flex: 2, minWidth: 200, padding: 12, background: itens.length ? 'var(--primary)' : 'var(--border)', color: '#fff', border: 'none', borderRadius: 4, fontSize: 14, fontWeight: 600, fontFamily: 'inherit', cursor: itens.length ? 'pointer' : 'not-allowed' }}
+        >
+          Exportar PDF
+        </button>
+        <button
+          onClick={enviarWhatsapp}
+          disabled={itens.length === 0}
+          style={{ flex: 1, minWidth: 130, padding: 12, background: itens.length ? '#25D366' : 'var(--border)', color: '#fff', border: 'none', borderRadius: 4, fontSize: 14, fontWeight: 600, fontFamily: 'inherit', cursor: itens.length ? 'pointer' : 'not-allowed' }}
+        >
+          WhatsApp
+        </button>
+        <button
+          onClick={enviarEmail}
+          disabled={itens.length === 0}
+          style={{ flex: 1, minWidth: 130, padding: 12, background: 'transparent', color: 'var(--primary)', border: '1px solid var(--primary)', borderRadius: 4, fontSize: 14, fontWeight: 600, fontFamily: 'inherit', cursor: itens.length ? 'pointer' : 'not-allowed' }}
+        >
+          Email
+        </button>
+      </div>
+      <p style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 8 }}>WhatsApp e Email abrem com o texto da proposta pronto. Para anexar o documento, clique em Exportar PDF, guarde e anexe na mensagem.</p>
     </div>
   );
 }
@@ -137,9 +216,11 @@ export default function CalculadoraPage() {
 // ============================================================
 // Documento PDF: proposta / orcamento do pacote
 // ============================================================
-function gerarProposta({ empresa, nomePacote, itens, totais }) {
+function gerarProposta({ empresa, nomePacote, itens, totais, validade, cliente }) {
   const num = `PROP ${new Date().getFullYear()}/${uid().slice(-4).toUpperCase()}`;
   const hoje = new Date().toLocaleDateString('pt-PT');
+  const validadeFmt = validade ? fmtDataBR(validade) : '';
+  const cli = cliente || {};
   const logoUrl = `${window.location.origin}/images/logo-full.jpeg`;
 
   const linhas = itens.map((i) => `
@@ -179,8 +260,15 @@ function gerarProposta({ empresa, nomePacote, itens, totais }) {
         <img src="${logoUrl}" alt="" onerror="this.style.display='none'"/>
         <div class="empresa">${escapeHtml(empresa)}<small>Escola de Solda</small></div>
       </div>
-      <div class="doc"><h1>PROPOSTA</h1><p>${escapeHtml(num)}</p><p>Data: ${hoje}</p></div>
+      <div class="doc"><h1>PROPOSTA</h1><p>${escapeHtml(num)}</p><p>Data: ${hoje}</p>${validadeFmt ? `<p style="color:#E2445C; font-weight:600;">Valida ate: ${validadeFmt}</p>` : ''}</div>
     </div>
+
+    ${cli.nome ? `<div class="box">
+      <div class="lbl">Cliente</div>
+      <div class="val" style="color:#323338; font-size:16px;">${escapeHtml(cli.nome)}</div>
+      ${cli.telefone ? `<div style="color:#676879; font-size:13px;">${escapeHtml(cli.telefone)}</div>` : ''}
+      ${cli.email ? `<div style="color:#676879; font-size:13px;">${escapeHtml(cli.email)}</div>` : ''}
+    </div>` : ''}
 
     <div class="box">
       <div class="lbl">Pacote</div>
@@ -200,7 +288,7 @@ function gerarProposta({ empresa, nomePacote, itens, totais }) {
       <div class="row" style="color:#9699A6; font-size:12px;"><span>Valor por hora</span><span>${fmtEUR(totais.valorHora)}</span></div>
     </div>
 
-    <div class="foot">Proposta gerada por ${escapeHtml(empresa)} em ${hoje}. Valores sujeitos a confirmacao.</div>
+    <div class="foot">Proposta gerada por ${escapeHtml(empresa)} em ${hoje}.${validadeFmt ? ` Valida ate ${validadeFmt}.` : ''} Valores sujeitos a confirmacao.</div>
 
     <div class="noprint" style="text-align:center; margin-top:30px;">
       <button onclick="window.print()" style="padding:10px 24px; background:#0073EA; color:#fff; border:none; border-radius:6px; font-size:14px; cursor:pointer;">Imprimir / Guardar PDF</button>
