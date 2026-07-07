@@ -5,6 +5,7 @@ import Modal from '../components/Modal';
 const TIPO_CLS = { PRATICA: { bg: '#E6F9F3', color: '#00A86B', dot: '#00C875' }, TEORICA: { bg: '#E6F2FF', color: '#0073EA', dot: '#0073EA' }, VISITA_TECNICA: { bg: '#FFF9E6', color: '#B8860B', dot: '#FFCB00' } };
 const TIPO_LABEL = { PRATICA: 'Aula Pratica', TEORICA: 'Aula Teorica', VISITA_TECNICA: 'Visita Tecnica' };
 const ESTADO_LABEL = { CONFIRMADO: 'Confirmado', PENDENTE: 'Pendente', CANCELADO: 'Cancelado' };
+const ESTADO_CLS = { CONFIRMADO: { bg: '#E6F9F3', color: '#00A86B' }, PENDENTE: { bg: '#FFF9E6', color: '#B8860B' }, CANCELADO: { bg: '#FFE6E9', color: '#E2445C' } };
 const DIAS_SEMANA = [{ n: 'Dom', v: 0 }, { n: 'Seg', v: 1 }, { n: 'Ter', v: 2 }, { n: 'Qua', v: 3 }, { n: 'Qui', v: 4 }, { n: 'Sex', v: 5 }, { n: 'Sab', v: 6 }];
 // Formata uma data como YYYY-MM-DD em hora LOCAL (evita o shift de fuso do toISOString)
 const toYMD = (dt) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
@@ -23,12 +24,11 @@ export default function AgendaPage({ actionTrigger }) {
   const [form, setForm] = useState(initialForm);
   const [editId, setEditId] = useState(null);
   const [filtros, setFiltros] = useState({ PRATICA: true, TEORICA: true, VISITA_TECNICA: true });
+  const [view, setView] = useState('mes');
 
   const carregar = useCallback(() => {
-    const ano = calDate.getFullYear();
-    const mes = calDate.getMonth() + 1;
-    aulasApi.listar({ ano, mes }).then(setAulas).catch(() => {});
-  }, [calDate]);
+    aulasApi.listar().then(setAulas).catch(() => {});
+  }, []);
 
   useEffect(() => { carregar(); }, [carregar]);
   useEffect(() => { alunosApi.listar().then(setAlunos).catch(() => {}); }, []);
@@ -110,6 +110,23 @@ export default function AgendaPage({ actionTrigger }) {
     }
   };
 
+  const mudarEstado = async (aula, estado) => {
+    try { await aulasApi.atualizar(aula.id, { estado }); carregar(); }
+    catch (err) { alert(err.message || 'Erro'); }
+  };
+
+  const navegar = (dir) => {
+    if (view === 'mes') { setCalDate(new Date(calDate.getFullYear(), calDate.getMonth() + dir, 1)); return; }
+    const d = new Date(calDate);
+    d.setDate(d.getDate() + dir * (view === 'semana' ? 7 : 1));
+    setCalDate(d);
+  };
+
+  const mudarView = (v) => {
+    if ((v === 'dia' || v === 'semana') && selectedDate) setCalDate(new Date(selectedDate + 'T00:00:00'));
+    setView(v);
+  };
+
   // Calendar rendering
   const ano = calDate.getFullYear(), mes = calDate.getMonth();
   const primeiroDia = new Date(ano, mes, 1).getDay();
@@ -133,6 +150,16 @@ export default function AgendaPage({ actionTrigger }) {
   const durHDist = (parseInt(dist.duracao) || 60) / 60;
   const nSessDist = cargaDist > 0 && durHDist > 0 ? Math.ceil(cargaDist / durHDist) : 0;
 
+  // Views (dia/semana/mes)
+  const dsCalDate = toYMD(calDate);
+  const inicioSem = new Date(calDate); inicioSem.setDate(calDate.getDate() - calDate.getDay());
+  const diasSemana7 = Array.from({ length: 7 }, (_, i) => { const d = new Date(inicioSem); d.setDate(inicioSem.getDate() + i); return d; });
+  const evsPorDia = (ds) => aulasFiltradas.filter((a) => (a.data?.split('T')[0] || '') === ds).sort((a, b) => (a.hora || '').localeCompare(b.hora || ''));
+  let tituloView;
+  if (view === 'mes') tituloView = `${meses[mes]} ${ano}`;
+  else if (view === 'semana') { const f = diasSemana7[6]; tituloView = `${diasSemana7[0].getDate()} ${meses[diasSemana7[0].getMonth()].slice(0, 3)} - ${f.getDate()} ${meses[f.getMonth()].slice(0, 3)} ${f.getFullYear()}`; }
+  else tituloView = calDate.toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long' });
+
   const inputStyle = { width: '100%', padding: '8px 12px', border: '1px solid var(--border)', borderRadius: 4, fontFamily: 'inherit', fontSize: 14, outline: 'none' };
 
   return (
@@ -153,7 +180,7 @@ export default function AgendaPage({ actionTrigger }) {
               const isHoje = ds === hoje;
               const isSel = ds === selectedDate;
               return (
-                <div key={dia} onClick={() => setSelectedDate(ds)} style={{ textAlign: 'center', padding: '6px 2px', fontSize: 11, borderRadius: 4, cursor: 'pointer', background: isHoje ? 'var(--primary)' : isSel ? 'var(--primary-selected)' : 'transparent', color: isHoje ? '#fff' : isSel ? 'var(--primary)' : 'var(--text-secondary)', fontWeight: isHoje || isSel ? 600 : 400 }}>{dia}</div>
+                <div key={dia} onClick={() => { setSelectedDate(ds); setCalDate(new Date(ds + 'T00:00:00')); }} style={{ textAlign: 'center', padding: '6px 2px', fontSize: 11, borderRadius: 4, cursor: 'pointer', background: isHoje ? 'var(--primary)' : isSel ? 'var(--primary-selected)' : 'transparent', color: isHoje ? '#fff' : isSel ? 'var(--primary)' : 'var(--text-secondary)', fontWeight: isHoje || isSel ? 600 : 400 }}>{dia}</div>
               );
             })}
           </div>
@@ -188,39 +215,97 @@ export default function AgendaPage({ actionTrigger }) {
 
       {/* Main calendar */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px', background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
-          <button onClick={() => setCalDate(new Date(ano, mes - 1, 1))} style={{ width: 28, height: 28, padding: 0, border: '1px solid var(--border)', borderRadius: 4, background: 'transparent', cursor: 'pointer', fontSize: 16 }}>&lsaquo;</button>
-          <span style={{ fontSize: 18, fontWeight: 700, margin: '0 12px', minWidth: 200 }}>{meses[mes]} {ano}</span>
-          <button onClick={() => setCalDate(new Date(ano, mes + 1, 1))} style={{ width: 28, height: 28, padding: 0, border: '1px solid var(--border)', borderRadius: 4, background: 'transparent', cursor: 'pointer', fontSize: 16 }}>&rsaquo;</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 20px', background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
+          <button onClick={() => navegar(-1)} style={{ width: 28, height: 28, padding: 0, border: '1px solid var(--border)', borderRadius: 4, background: 'transparent', cursor: 'pointer', fontSize: 16 }}>&lsaquo;</button>
+          <span style={{ fontSize: 18, fontWeight: 700, margin: '0 8px', minWidth: 210, textTransform: 'capitalize' }}>{tituloView}</span>
+          <button onClick={() => navegar(1)} style={{ width: 28, height: 28, padding: 0, border: '1px solid var(--border)', borderRadius: 4, background: 'transparent', cursor: 'pointer', fontSize: 16 }}>&rsaquo;</button>
           <button onClick={() => { setCalDate(new Date()); setSelectedDate(hoje); }} style={{ padding: '4px 12px', border: '1px solid var(--border)', borderRadius: 4, background: 'transparent', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit', color: 'var(--text-secondary)' }}>Hoje</button>
+          <div style={{ display: 'flex', border: '1px solid var(--border)', borderRadius: 6, overflow: 'hidden', marginLeft: 4 }}>
+            {[['dia', 'Dia'], ['semana', 'Semana'], ['mes', 'Mes']].map(([v, label]) => (
+              <button key={v} onClick={() => mudarView(v)} style={{ padding: '5px 14px', border: 'none', background: view === v ? 'var(--primary)' : 'transparent', color: view === v ? '#fff' : 'var(--text-secondary)', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>{label}</button>
+            ))}
+          </div>
           <button onClick={abrirDistribuir} style={{ marginLeft: 'auto', padding: '5px 14px', border: 'none', borderRadius: 4, background: 'var(--primary)', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}>Distribuir horarios</button>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', flex: 1, background: 'var(--border)', gap: 1, border: '1px solid var(--border)', overflow: 'hidden' }}>
-          {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'].map((d) => (
-            <div key={d} style={{ background: 'var(--surface)', padding: 10, textAlign: 'center', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>{d}</div>
-          ))}
-          {Array.from({ length: primeiroDia }).map((_, i) => <div key={`e${i}`} style={{ background: 'var(--surface)' }} />)}
-          {Array.from({ length: diasNoMes }).map((_, i) => {
-            const dia = i + 1;
-            const ds = `${ano}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
-            const isHoje = ds === hoje;
-            const evs = aulasFiltradas.filter((a) => (a.data?.split('T')[0] || '') === ds);
-            return (
-              <div key={dia} onClick={() => { setSelectedDate(ds); setDiaAberto(ds); }} style={{ background: isHoje ? '#F0F4FF' : 'var(--surface)', minHeight: 100, padding: 6, cursor: 'pointer', overflow: 'hidden' }}>
-                <span style={{ fontSize: 13, fontWeight: 500, padding: '2px 6px', display: 'inline-block', ...(isHoje ? { background: 'var(--primary)', color: '#fff', borderRadius: 12 } : {}) }}>{dia}</span>
-                {evs.slice(0, 4).map((e) => {
-                  const tc = TIPO_CLS[e.tipo] || TIPO_CLS.PRATICA;
-                  return (
-                    <div key={e.id} onClick={(ev) => { ev.stopPropagation(); abrirModal(e); }} style={{ fontSize: 11, padding: '2px 6px', borderRadius: 3, marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 500, background: tc.bg, color: tc.color }}>
-                      {e.hora} {e.aluno?.nome?.split(' ')[0]}
+        {view === 'mes' && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', flex: 1, background: 'var(--border)', gap: 1, border: '1px solid var(--border)', overflow: 'hidden' }}>
+            {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'].map((d) => (
+              <div key={d} style={{ background: 'var(--surface)', padding: 10, textAlign: 'center', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>{d}</div>
+            ))}
+            {Array.from({ length: primeiroDia }).map((_, i) => <div key={`e${i}`} style={{ background: 'var(--surface)' }} />)}
+            {Array.from({ length: diasNoMes }).map((_, i) => {
+              const dia = i + 1;
+              const ds = `${ano}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+              const isHoje = ds === hoje;
+              const evs = evsPorDia(ds);
+              return (
+                <div key={dia} onClick={() => { setSelectedDate(ds); setDiaAberto(ds); }} style={{ background: isHoje ? '#F0F4FF' : 'var(--surface)', minHeight: 100, padding: 6, cursor: 'pointer', overflow: 'hidden' }}>
+                  <span style={{ fontSize: 13, fontWeight: 500, padding: '2px 6px', display: 'inline-block', ...(isHoje ? { background: 'var(--primary)', color: '#fff', borderRadius: 12 } : {}) }}>{dia}</span>
+                  {evs.slice(0, 4).map((e) => {
+                    const tc = TIPO_CLS[e.tipo] || TIPO_CLS.PRATICA;
+                    return (
+                      <div key={e.id} onClick={(ev) => { ev.stopPropagation(); abrirModal(e); }} style={{ fontSize: 11, padding: '2px 6px', borderRadius: 3, marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 500, background: tc.bg, color: tc.color, opacity: e.estado === 'CANCELADO' ? 0.5 : 1 }}>
+                        {e.hora} {e.aluno?.nome?.split(' ')[0]}
+                      </div>
+                    );
+                  })}
+                  {evs.length > 4 && <div style={{ fontSize: 10, color: 'var(--text-tertiary)', padding: '0 6px' }}>+{evs.length - 4} mais</div>}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {view === 'semana' && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', flex: 1, background: 'var(--border)', gap: 1, border: '1px solid var(--border)', overflow: 'hidden' }}>
+            {diasSemana7.map((d) => {
+              const ds = toYMD(d);
+              const isHoje = ds === hoje;
+              const evs = evsPorDia(ds);
+              return (
+                <div key={ds} onClick={() => { setSelectedDate(ds); setDiaAberto(ds); }} style={{ background: isHoje ? '#F0F4FF' : 'var(--surface)', padding: 6, cursor: 'pointer', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ textAlign: 'center', marginBottom: 6, borderBottom: '1px solid var(--border)', paddingBottom: 4 }}>
+                    <div style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--text-tertiary)', fontWeight: 600 }}>{DIAS_SEMANA[d.getDay()].n}</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: isHoje ? 'var(--primary)' : 'var(--text-primary)' }}>{d.getDate()}</div>
+                  </div>
+                  {evs.map((e) => {
+                    const tc = TIPO_CLS[e.tipo] || TIPO_CLS.PRATICA;
+                    return (
+                      <div key={e.id} onClick={(ev) => { ev.stopPropagation(); abrirModal(e); }} style={{ fontSize: 11, padding: '3px 6px', borderRadius: 3, marginBottom: 3, fontWeight: 500, background: tc.bg, color: tc.color, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', opacity: e.estado === 'CANCELADO' ? 0.5 : 1 }}>
+                        {e.hora} {e.aluno?.nome?.split(' ')[0]}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {view === 'dia' && (
+          <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
+            <div style={{ maxWidth: 640, margin: '0 auto' }}>
+              {evsPorDia(dsCalDate).length ? evsPorDia(dsCalDate).map((a) => {
+                const tc = TIPO_CLS[a.tipo] || TIPO_CLS.PRATICA;
+                const sc = ESTADO_CLS[a.estado] || ESTADO_CLS.PENDENTE;
+                return (
+                  <div key={a.id} onClick={() => abrirModal(a)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 8, border: '1px solid var(--border)', borderLeft: `3px solid ${tc.dot}`, marginBottom: 8, cursor: 'pointer', background: 'var(--surface)' }}>
+                    <div style={{ fontWeight: 700, fontSize: 16, minWidth: 56 }}>{a.hora}</div>
+                    <div style={{ flex: 1, overflow: 'hidden' }}>
+                      <div style={{ fontWeight: 600 }}>{a.aluno?.nome}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{TIPO_LABEL[a.tipo]} — {a.duracao}min</div>
                     </div>
-                  );
-                })}
-              </div>
-            );
-          })}
-        </div>
+                    <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: sc.bg, color: sc.color }}>{ESTADO_LABEL[a.estado] || a.estado}</span>
+                  </div>
+                );
+              }) : (
+                <div style={{ textAlign: 'center', color: 'var(--text-tertiary)', padding: 40 }}>Nenhum aluno agendado neste dia.</div>
+              )}
+              <button onClick={() => abrirModal(null, dsCalDate)} style={{ width: '100%', marginTop: 8, padding: 11, background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 4, fontSize: 14, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>+ Novo agendamento neste dia</button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modal: distribuir horarios automaticamente */}
@@ -292,7 +377,14 @@ export default function AgendaPage({ actionTrigger }) {
                   <div style={{ fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.aluno?.nome || 'Aluno'}</div>
                   <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{TIPO_LABEL[a.tipo]} — {a.duracao}min</div>
                 </div>
-                <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: tc.bg, color: tc.color }}>{ESTADO_LABEL[a.estado] || a.estado}</span>
+                <select
+                  value={a.estado}
+                  onClick={(ev) => ev.stopPropagation()}
+                  onChange={(ev) => { ev.stopPropagation(); mudarEstado(a, ev.target.value); }}
+                  style={{ padding: '4px 8px', borderRadius: 6, fontSize: 12, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer', border: '1px solid var(--border)', background: (ESTADO_CLS[a.estado] || ESTADO_CLS.PENDENTE).bg, color: (ESTADO_CLS[a.estado] || ESTADO_CLS.PENDENTE).color }}
+                >
+                  {Object.entries(ESTADO_LABEL).map(([k, v]) => <option key={k} value={k} style={{ color: 'var(--text-primary)', background: '#fff' }}>{v}</option>)}
+                </select>
                 <span style={{ color: 'var(--primary)', fontSize: 12, fontWeight: 500 }}>Editar</span>
               </div>
             );
