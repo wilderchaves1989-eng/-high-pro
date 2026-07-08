@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 // ── ALUNOS ──────────────────────────────────────────────────
 export const alunos = {
   async listar({ busca, cursoId, status } = {}) {
-    let query = supabase.from('alunos').select('*, cursos(id, nome, valor, carga)').order('criado_em', { ascending: false });
+    let query = supabase.from('alunos').select('*, cursos(id, nome, valor, carga, processo)').order('criado_em', { ascending: false });
     if (busca) query = query.or(`nome.ilike.%${busca}%,email.ilike.%${busca}%,telefone.ilike.%${busca}%`);
     if (cursoId) query = query.eq('curso_id', cursoId);
     if (status) query = query.eq('status', status);
@@ -22,7 +22,7 @@ export const alunos = {
       origem: dados.origem || null,
       faixa_etaria: dados.faixaEtaria || null,
       profissao: dados.profissao || null,
-    }]).select('*, cursos(id, nome, valor, carga)').single();
+    }]).select('*, cursos(id, nome, valor, carga, processo)').single();
     if (error) throw error;
     return data;
   },
@@ -38,7 +38,7 @@ export const alunos = {
     if (dados.faixaEtaria !== undefined) update.faixa_etaria = dados.faixaEtaria;
     if (dados.profissao !== undefined) update.profissao = dados.profissao;
 
-    const { data, error } = await supabase.from('alunos').update(update).eq('id', id).select('*, cursos(id, nome, valor, carga)').single();
+    const { data, error } = await supabase.from('alunos').update(update).eq('id', id).select('*, cursos(id, nome, valor, carga, processo)').single();
     if (error) throw error;
     return data;
   },
@@ -279,6 +279,25 @@ export const lancamentos = {
   async excluir(id) {
     const { error } = await supabase.from('lancamentos').delete().eq('id', id);
     if (error) throw error;
+  },
+};
+
+// ── SKILLS (Progresso de estudo por fase) ───────────────────
+export const skills = {
+  async listar(alunoId) {
+    let query = supabase.from('skills_alunos').select('*');
+    if (alunoId) query = query.eq('aluno_id', alunoId);
+    const { data, error } = await query;
+    if (error) throw error;
+    return data;
+  },
+
+  async definir(alunoId, skillKey, nivel) {
+    const { data, error } = await supabase.from('skills_alunos')
+      .upsert({ aluno_id: parseInt(alunoId), skill_key: skillKey, nivel: parseInt(nivel), atualizado_em: new Date().toISOString() }, { onConflict: 'aluno_id,skill_key' })
+      .select().single();
+    if (error) throw error;
+    return data;
   },
 };
 

@@ -8,11 +8,13 @@ import ConfigPage from '../pages/ConfigPage';
 import FinanceiroPage from '../pages/FinanceiroPage';
 import CalculadoraPage from '../pages/CalculadoraPage';
 import VisitasPage from '../pages/VisitasPage';
+import EstudoPage from '../pages/EstudoPage';
 
 const PAGES = {
   dashboard: { title: 'Dashboard', component: Dashboard, action: '+ Novo Aluno' },
   alunos: { title: 'Alunos', component: AlunosPage, action: '+ Novo Aluno' },
   agenda: { title: 'Agenda', component: AgendaPage, action: '+ Agendar' },
+  estudo: { title: 'Progresso de Estudo', component: EstudoPage, action: null },
   visitas: { title: 'Visitas', component: VisitasPage, action: null },
   financeiro: { title: 'Financeiro', component: FinanceiroPage, action: null },
   calculadora: { title: 'Calculadora de Pacotes', component: CalculadoraPage, action: null },

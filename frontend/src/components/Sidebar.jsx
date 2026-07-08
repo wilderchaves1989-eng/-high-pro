@@ -5,6 +5,7 @@ const NAV_ITEMS = [
   { key: 'dashboard', label: 'Dashboard' },
   { key: 'alunos', label: 'Alunos', badge: true },
   { key: 'agenda', label: 'Agenda', badge: true },
+  { key: 'estudo', label: 'Estudo' },
   { key: 'visitas', label: 'Visitas' },
   { key: 'financeiro', label: 'Financeiro' },
   { key: 'calculadora', label: 'Calculadora' },
