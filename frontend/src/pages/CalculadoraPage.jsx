@@ -221,7 +221,7 @@ function gerarProposta({ empresa, nomePacote, itens, totais, validade, cliente }
   const hoje = new Date().toLocaleDateString('pt-PT');
   const validadeFmt = validade ? fmtDataBR(validade) : '';
   const cli = cliente || {};
-  const logoUrl = `${window.location.origin}/images/logo-full.jpeg`;
+  const logoUrl = `${window.location.origin}/images/logo-highpro.svg`;
 
   const linhas = itens.map((i) => `
     <tr>
