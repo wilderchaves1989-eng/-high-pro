@@ -10,7 +10,7 @@ const DIAS_SEMANA = [{ n: 'Dom', v: 0 }, { n: 'Seg', v: 1 }, { n: 'Ter', v: 2 },
 // Formata uma data como YYYY-MM-DD em hora LOCAL (evita o shift de fuso do toISOString)
 const toYMD = (dt) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
 
-const initialForm = { alunoId: '', tipo: 'PRATICA', data: '', hora: '09:00', duracao: 60, estado: 'CONFIRMADO' };
+const initialForm = { alunoId: '', tipo: 'PRATICA', data: '', hora: '09:00', duracao: 60, estado: 'CONFIRMADO', notas: '' };
 
 export default function AgendaPage({ actionTrigger }) {
   const [aulas, setAulas] = useState([]);
@@ -37,7 +37,7 @@ export default function AgendaPage({ actionTrigger }) {
   const abrirModal = (aula, dataNova) => {
     if (aula) {
       setEditId(aula.id);
-      setForm({ alunoId: aula.aluno_id || aula.aluno?.id || '', tipo: aula.tipo, data: aula.data?.split('T')[0], hora: aula.hora, duracao: aula.duracao, estado: aula.estado });
+      setForm({ alunoId: aula.aluno_id || aula.aluno?.id || '', tipo: aula.tipo, data: aula.data?.split('T')[0], hora: aula.hora, duracao: aula.duracao, estado: aula.estado, notas: aula.notas || '' });
     } else {
       setEditId(null);
       setForm({ ...initialForm, data: dataNova || selectedDate });
@@ -376,6 +376,7 @@ export default function AgendaPage({ actionTrigger }) {
                 <div style={{ flex: 1, overflow: 'hidden' }}>
                   <div style={{ fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.aluno?.nome || 'Aluno'}</div>
                   <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{TIPO_LABEL[a.tipo]} — {a.duracao}min</div>
+                  {a.notas && <div style={{ fontSize: 12, color: 'var(--primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.notas}</div>}
                 </div>
                 <select
                   value={a.estado}
@@ -430,6 +431,10 @@ export default function AgendaPage({ actionTrigger }) {
                 {Object.entries(ESTADO_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
             </div>
+          </div>
+          <div style={{ marginBottom: 4 }}>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 }}>Objetivo / Fase</label>
+            <input value={form.notas} onChange={(e) => setForm({ ...form, notas: e.target.value })} placeholder="Ex: Fase 2: Cordao sobre chapa plana" style={inputStyle} />
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
             <button type="submit" style={{ flex: 1, padding: 10, background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 4, fontSize: 14, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer' }}>Guardar</button>

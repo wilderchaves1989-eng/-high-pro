@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { alunos as alunosApi, skills as skillsApi } from '../services/api';
+import { alunos as alunosApi, aulas as aulasApi, skills as skillsApi } from '../services/api';
 import Modal from '../components/Modal';
+
+const toYMD = (dt) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
 
 // Trilhas de fases por processo (base: motor de referencia da escola)
 const TRILHAS = {
@@ -36,6 +38,7 @@ function trilhaDoProcesso(processo = '') {
 
 export default function EstudoPage() {
   const [alunos, setAlunos] = useState([]);
+  const [aulas, setAulas] = useState([]);
   const [skills, setSkills] = useState([]);
   const [sel, setSel] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -45,8 +48,12 @@ export default function EstudoPage() {
   const carregar = useCallback(async () => {
     setLoading(true);
     try {
-      const a = await alunosApi.listar().catch(() => []);
+      const [a, au] = await Promise.all([
+        alunosApi.listar().catch(() => []),
+        aulasApi.listar().catch(() => []),
+      ]);
       setAlunos(a || []);
+      setAulas(au || []);
       try {
         const s = await skillsApi.listar();
         setSkills(s || []);
@@ -135,13 +142,13 @@ export default function EstudoPage() {
         </div>
       </div>
 
-      {sel && <EstudoModal linha={sel} onClose={() => setSel(null)} onChange={carregar} />}
+      {sel && <EstudoModal linha={sel} aulas={aulas} onClose={() => setSel(null)} onChange={carregar} />}
     </div>
   );
 }
 
-function EstudoModal({ linha, onClose, onChange }) {
-  const { aluno, trilha, niveis, faseAtual, progresso, concluidas } = linha;
+function EstudoModal({ linha, aulas, onClose, onChange }) {
+  const { aluno, trilha, niveis, faseAtual, faseIdx, progresso, concluidas } = linha;
   const [busy, setBusy] = useState(false);
 
   const definir = async (skillKey, nivel) => {
@@ -150,6 +157,28 @@ function EstudoModal({ linha, onClose, onChange }) {
     catch (err) { alert(err.message || 'Erro'); }
     finally { setBusy(false); }
   };
+
+  // Sugestao da proxima aula: mesmo horario/dia-da-semana da ultima aula do aluno
+  const aulasAluno = (aulas || []).filter((a) => a.aluno_id === aluno.id)
+    .sort((a, b) => ((b.data || '') + (b.hora || '')).localeCompare((a.data || '') + (a.hora || '')));
+  const ultima = aulasAluno[0];
+  const sugestaoData = () => { const base = ultima?.data ? new Date(ultima.data.split('T')[0] + 'T00:00:00') : new Date(); base.setDate(base.getDate() + (ultima ? 7 : 1)); return toYMD(base); };
+  const [ag, setAg] = useState({ data: sugestaoData(), hora: ultima?.hora || '09:00', duracao: ultima?.duracao || 240 });
+
+  const agendar = async () => {
+    if (!faseAtual || !ag.data) { alert('Escolha a data.'); return; }
+    const conflito = (aulas || []).some((a) => (a.data?.split('T')[0] || '') === ag.data && a.hora === ag.hora && a.estado !== 'CANCELADO');
+    if (conflito && !window.confirm('Ja existe uma aula nesse dia e hora. Agendar mesmo assim?')) return;
+    setBusy(true);
+    try {
+      await aulasApi.criar({ alunoId: aluno.id, tipo: 'PRATICA', data: ag.data, hora: ag.hora, duracao: ag.duracao, estado: 'CONFIRMADO', notas: `Fase ${faseIdx + 1}: ${faseAtual.nome}` });
+      alert('Aula agendada na Agenda para a fase atual do aluno.');
+      await onChange();
+    } catch (err) { alert(err.message || 'Erro ao agendar'); }
+    finally { setBusy(false); }
+  };
+
+  const inputMini = { padding: '7px 10px', border: '1px solid var(--border)', borderRadius: 4, fontFamily: 'inherit', fontSize: 13, outline: 'none' };
 
   return (
     <Modal open onClose={onClose} title={`Estudo - ${aluno.nome}`} maxWidth={720}>
@@ -160,6 +189,23 @@ function EstudoModal({ linha, onClose, onChange }) {
       <div style={{ background: 'var(--background)', borderRadius: 4, height: 8, overflow: 'hidden', marginBottom: 16 }}>
         <div style={{ width: `${progresso}%`, height: '100%', background: progresso === 100 ? '#00C875' : 'var(--primary)' }} />
       </div>
+
+      {/* Cronograma adaptativo: agendar proxima aula na fase atual */}
+      {faseAtual ? (
+        <div style={{ border: '1px solid var(--primary)', borderRadius: 8, padding: '12px 14px', marginBottom: 16, background: 'var(--primary-highlighted)' }}>
+          <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 8 }}>Agendar proxima aula — <span style={{ color: 'var(--primary)' }}>{faseIdx + 1}. {faseAtual.nome}</span></div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            <div><label style={{ display: 'block', fontSize: 11, marginBottom: 3, color: 'var(--text-secondary)' }}>Data</label><input type="date" value={ag.data} onChange={(e) => setAg({ ...ag, data: e.target.value })} style={{ ...inputMini, width: 150 }} /></div>
+            <div><label style={{ display: 'block', fontSize: 11, marginBottom: 3, color: 'var(--text-secondary)' }}>Hora</label><input type="time" value={ag.hora} onChange={(e) => setAg({ ...ag, hora: e.target.value })} style={{ ...inputMini, width: 110 }} /></div>
+            <div><label style={{ display: 'block', fontSize: 11, marginBottom: 3, color: 'var(--text-secondary)' }}>Duracao (min)</label><input type="number" min="30" step="30" value={ag.duracao} onChange={(e) => setAg({ ...ag, duracao: e.target.value })} style={{ ...inputMini, width: 100 }} /></div>
+            <button onClick={agendar} disabled={busy} style={{ padding: '8px 16px', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 4, fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>Agendar na Agenda</button>
+          </div>
+        </div>
+      ) : (
+        <div style={{ border: '1px solid var(--success)', borderRadius: 8, padding: '12px 14px', marginBottom: 16, background: '#E6F9F3', fontSize: 13, color: '#00A86B', fontWeight: 500 }}>
+          Trilha completa. Sugestao: encaminhar para certificacao (EN ISO 9606).
+        </div>
+      )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {trilha.map((f, i) => {
