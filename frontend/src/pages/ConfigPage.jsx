@@ -184,14 +184,25 @@ export default function ConfigPage() {
             <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 }}>Nome do Curso <span style={{ color: 'var(--danger)' }}>*</span></label>
             <input required value={cursoForm.nome} onChange={(e) => setCursoForm({ ...cursoForm, nome: e.target.value })} placeholder="Ex: Eletrodo Revestido Basico" style={inputStyle} />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-            <div style={{ marginBottom: 14 }}>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 }}>Processo</label>
-              <select value={cursoForm.processo} onChange={(e) => setCursoForm({ ...cursoForm, processo: e.target.value })} style={{ ...inputStyle, cursor: 'pointer' }}>
-                <option value="">Selecione...</option>
-                {PROCESSOS.map((p) => <option key={p}>{p}</option>)}
-              </select>
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 }}>Processos <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontWeight: 400 }}>(pode escolher mais de um)</span></label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+              {PROCESSOS.map((p) => {
+                const sel = cursoForm.processo ? cursoForm.processo.split(' | ') : [];
+                const on = sel.includes(p);
+                return (
+                  <label key={p} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer', padding: '7px 10px', borderRadius: 4, border: `1px solid ${on ? 'var(--primary)' : 'var(--border)'}`, background: on ? 'var(--primary-selected)' : 'transparent' }}>
+                    <input type="checkbox" checked={on} onChange={() => {
+                      const novo = on ? sel.filter((x) => x !== p) : [...sel, p];
+                      setCursoForm({ ...cursoForm, processo: novo.join(' | ') });
+                    }} style={{ accentColor: 'var(--primary)' }} />
+                    <span>{p}</span>
+                  </label>
+                );
+              })}
             </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div style={{ marginBottom: 14 }}>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 }}>Carga Horaria <span style={{ color: 'var(--danger)' }}>*</span></label>
               <input required type="number" min="1" value={cursoForm.carga} onChange={(e) => setCursoForm({ ...cursoForm, carga: e.target.value })} placeholder="Horas" style={inputStyle} />
