@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { key: 'estudo', label: 'Estudo' },
   { key: 'visitas', label: 'Visitas' },
   { key: 'financeiro', label: 'Financeiro' },
+  { key: 'consumo', label: 'Consumo' },
   { key: 'calculadora', label: 'Calculadora' },
   { key: 'configuracoes', label: 'Configuracoes', gestorOnly: true },
 ];
