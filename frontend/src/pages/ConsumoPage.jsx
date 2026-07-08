@@ -1,8 +1,17 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { PARAMETROS_PADRAO, POSICOES, consumoSessao, pecasSugeridas } from '../services/motorConsumo';
+import { alunos as alunosApi } from '../services/api';
 
 const fmtEUR = (v) => `EUR ${Number(v || 0).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const clone = (o) => JSON.parse(JSON.stringify(o));
+
+// Mapeia o processo do curso para o processo do motor
+function procDoCurso(processo = '') {
+  const p = (processo || '').toUpperCase();
+  if (p.includes('GTAW') || p.includes('TIG')) return 'tig';
+  if (p.includes('SMAW') || p.includes('ELETRODO') || p.includes('REVESTIDO')) return 'eletrodo';
+  return 'mig';
+}
 
 // Campos editaveis de material/precos por processo
 const CAMPOS = {
@@ -33,12 +42,28 @@ export default function ConsumoPage() {
   const [pecasManual, setPecasManual] = useState('');
   const [params, setParams] = useState(clone(PARAMETROS_PADRAO));
   const [showParams, setShowParams] = useState(false);
+  const [alunos, setAlunos] = useState([]);
+  const [alunoId, setAlunoId] = useState('');
+
+  useEffect(() => { alunosApi.listar().then(setAlunos).catch(() => {}); }, []);
 
   const setParam = (campo, valor) => setParams((prev) => {
     const novo = clone(prev);
     novo[proc][campo] = parseFloat(valor) || 0;
     return novo;
   });
+
+  // Ao escolher um aluno, preenche processo e carga com base no curso dele
+  const escolherAluno = (id) => {
+    setAlunoId(id);
+    const a = alunos.find((x) => String(x.id) === String(id));
+    if (a && a.cursos) {
+      setProc(procDoCurso(a.cursos.processo));
+      if (a.cursos.carga) { setHoras(a.cursos.carga); setPecasManual(''); }
+    }
+  };
+
+  const alunoSel = alunos.find((x) => String(x.id) === String(alunoId));
 
   const posMult = (POSICOES.find((p) => p.key === posicao) || POSICOES[0]).mult;
   const fatorArco = (params.fatorArcoPorNivel[nivel] || 0.25) * posMult;
@@ -64,6 +89,20 @@ export default function ConsumoPage() {
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: 20 }}>
           <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 4 }}>Projecao de Consumo</div>
           <div style={{ fontSize: 13, color: 'var(--text-tertiary)', marginBottom: 16 }}>Estime material e custo por tempo de aula.</div>
+
+          {/* Aluno (preenche pelo curso) */}
+          <div style={{ marginBottom: 14 }}>
+            <label style={label}>Aluno (opcional — preenche pelo curso)</label>
+            <select value={alunoId} onChange={(e) => escolherAluno(e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
+              <option value="">Manual...</option>
+              {alunos.filter((a) => a.cursos).map((a) => <option key={a.id} value={a.id}>{a.nome} — {a.cursos.nome}</option>)}
+            </select>
+            {alunoSel?.cursos && (
+              <div style={{ fontSize: 12, color: 'var(--primary)', marginTop: 6, background: 'var(--primary-highlighted)', borderRadius: 4, padding: '6px 10px' }}>
+                Base do curso: <strong>{alunoSel.cursos.nome}</strong> · carga {alunoSel.cursos.carga || 0}h · {alunoSel.cursos.processo || '--'}
+              </div>
+            )}
+          </div>
 
           {/* Processo */}
           <div style={{ marginBottom: 14 }}>
