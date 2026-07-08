@@ -18,6 +18,11 @@ const CAMPOS = {
     ['vazaoLMin', 'Gas (L/min)'], ['fatorDesperdicioGas', 'Fator desperd. gas'], ['precoGarrafa', 'Preco garrafa (EUR)'], ['garrafaM3', 'Garrafa (m3)'],
     ['overhead', 'Overhead (0-1)'], ['taxaPecasHora', 'Pecas/hora'],
   ],
+  eletrodo: [
+    ['chapaAmm', 'Chapa A (mm)'], ['chapaBmm', 'Chapa B (mm)'], ['espessuraMm', 'Espessura (mm)'], ['precoAcoKg', 'Preco aco (EUR/kg)'],
+    ['deposicaoKgH', 'Deposicao (kg/h)'], ['fatorPerdaEletrodo', 'Fator perda eletrodo'], ['precoEletrodoKg', 'Preco eletrodo (EUR/kg)'],
+    ['overhead', 'Overhead (0-1)'], ['taxaPecasHora', 'Pecas/hora'],
+  ],
 };
 
 export default function ConsumoPage() {
@@ -45,8 +50,9 @@ export default function ConsumoPage() {
     [proc, params, horas, fatorArco, pecas],
   );
 
-  const matLabel = proc === 'mig' ? 'Aco (kg)' : 'Tubo (kg)';
-  const adicaoLabel = proc === 'mig' ? 'Arame (kg)' : 'Vareta (kg)';
+  const matLabel = proc === 'tig' ? 'Tubo (kg)' : 'Aco (kg)';
+  const adicaoLabel = proc === 'mig' ? 'Arame (kg)' : proc === 'tig' ? 'Vareta (kg)' : 'Eletrodo (kg)';
+  const custoArcoLabel = proc === 'eletrodo' ? 'Custo de arco (eletrodo)' : 'Custo de arco (arame/vareta + gas)';
 
   const inputStyle = { width: '100%', padding: '8px 12px', border: '1px solid var(--border)', borderRadius: 4, fontFamily: 'inherit', fontSize: 14, outline: 'none' };
   const label = { display: 'block', fontSize: 12, marginBottom: 4, color: 'var(--text-secondary)' };
@@ -63,7 +69,7 @@ export default function ConsumoPage() {
           <div style={{ marginBottom: 14 }}>
             <label style={label}>Processo</label>
             <div style={{ display: 'flex', border: '1px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}>
-              {[['mig', 'MIG / MAG'], ['tig', 'TIG']].map(([k, v]) => (
+              {[['mig', 'MIG / MAG'], ['tig', 'TIG'], ['eletrodo', 'Eletrodo']].map(([k, v]) => (
                 <button key={k} onClick={() => setProc(k)} style={{ flex: 1, padding: '8px 0', border: 'none', background: proc === k ? 'var(--primary)' : 'transparent', color: proc === k ? '#fff' : 'var(--text-secondary)', fontSize: 14, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>{v}</button>
               ))}
             </div>
@@ -125,7 +131,7 @@ export default function ConsumoPage() {
                 ['Nº de pecas', `${res.pecas}`],
                 [matLabel, `${res.materialKg} kg`],
                 [adicaoLabel, `${res.metalAdicaoKg} kg`],
-                ['Gas', `${res.gasM3} m3`],
+                ...(proc !== 'eletrodo' ? [['Gas', `${res.gasM3} m3`]] : []),
               ].map(([k, v]) => (
                 <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)', fontSize: 14 }}>
                   <span style={{ color: 'var(--text-secondary)' }}>{k}</span>
@@ -137,7 +143,7 @@ export default function ConsumoPage() {
                 <span style={{ fontWeight: 600 }}>{fmtEUR(res.custoPecas)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', fontSize: 14 }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Custo de arco (arame/vareta + gas)</span>
+                <span style={{ color: 'var(--text-secondary)' }}>{custoArcoLabel}</span>
                 <span style={{ fontWeight: 600 }}>{fmtEUR(res.custoArco)}</span>
               </div>
             </div>

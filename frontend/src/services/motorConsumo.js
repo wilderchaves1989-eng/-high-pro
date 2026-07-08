@@ -19,6 +19,12 @@ export const PARAMETROS_PADRAO = {
     garrafaM3: 10.7, precoGarrafa: 110.0,
     overhead: 0.15, taxaPecasHora: 2.5,
   },
+  eletrodo: {
+    // SMAW / eletrodo revestido — mesma chapa de aco do MIG, sem gas.
+    chapaAmm: 200, chapaBmm: 100, espessuraMm: 6, precoAcoKg: 1.2,
+    deposicaoKgH: 0.8, fatorPerdaEletrodo: 1.5, precoEletrodoKg: 3.5,
+    overhead: 0.1, taxaPecasHora: 1.6,
+  },
   fatorArcoPorNivel: { 0: 0.25, 1: 0.25, 2: 0.3, 3: 0.35, 4: 0.4 },
 };
 
@@ -33,9 +39,9 @@ export function massaTuboKg(p) {
 }
 
 export function custoPeca(proc, params) {
-  return proc === 'mig'
-    ? massaChapaKg(params.mig) * params.mig.precoAcoKg
-    : massaTuboKg(params.tig) * params.tig.precoTuboKg;
+  if (proc === 'tig') return massaTuboKg(params.tig) * params.tig.precoTuboKg;
+  const p = params[proc]; // mig e eletrodo usam chapa de aco
+  return massaChapaKg(p) * p.precoAcoKg;
 }
 
 export function precoGasM3(proc, params) {
@@ -45,13 +51,15 @@ export function precoGasM3(proc, params) {
 
 export function custoMinArco(proc, params) {
   const p = params[proc];
-  const gas = (p.vazaoLMin * p.fatorDesperdicioGas * precoGasM3(proc, params)) / 1000;
+  const gas = proc === 'eletrodo' ? 0 : (p.vazaoLMin * p.fatorDesperdicioGas * precoGasM3(proc, params)) / 1000;
   let metal;
   if (proc === 'mig') {
     const gPorM = (Math.PI / 4) * Math.pow(params.mig.arameDiamMm, 2) * 7.85;
     metal = (params.mig.wfsMMin * gPorM / 1000) * params.mig.precoArameKg;
-  } else {
+  } else if (proc === 'tig') {
     metal = (params.tig.deposicaoKgH / 60) * params.tig.fatorPerdaVareta * params.tig.precoVaretaKg;
+  } else {
+    metal = (params.eletrodo.deposicaoKgH / 60) * params.eletrodo.fatorPerdaEletrodo * params.eletrodo.precoEletrodoKg;
   }
   return metal + gas;
 }
@@ -66,16 +74,19 @@ export function consumoSessao(proc, params, horas, fatorArco, pecas) {
   if (proc === 'mig') {
     const gPorM = (Math.PI / 4) * Math.pow(params.mig.arameDiamMm, 2) * 7.85;
     metalKg = (arcoMin * params.mig.wfsMMin * gPorM) / 1000;
-  } else {
+  } else if (proc === 'tig') {
     metalKg = (arcoMin / 60) * params.tig.deposicaoKgH * params.tig.fatorPerdaVareta;
+  } else {
+    metalKg = (arcoMin / 60) * params.eletrodo.deposicaoKgH * params.eletrodo.fatorPerdaEletrodo;
   }
-  const massaUnit = proc === 'mig' ? massaChapaKg(params.mig) : massaTuboKg(params.tig);
+  const massaUnit = proc === 'tig' ? massaTuboKg(params.tig) : massaChapaKg(params[proc]);
+  const gasM3 = proc === 'eletrodo' ? 0 : (arcoMin * p.vazaoLMin * p.fatorDesperdicioGas) / 1000;
   return {
     arcoMin: Math.round(arcoMin),
     pecas,
     materialKg: r2(pecas * massaUnit),
     metalAdicaoKg: r2(metalKg),
-    gasM3: r2((arcoMin * p.vazaoLMin * p.fatorDesperdicioGas) / 1000),
+    gasM3: r2(gasM3),
     custoPecas: r2(custoPecas),
     custoArco: r2(custoArco),
     total: r2(total),
