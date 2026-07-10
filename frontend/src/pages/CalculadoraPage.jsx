@@ -101,7 +101,7 @@ export function CalculadoraPacotes({ empresa = 'High Pro' }) {
       {/* Cliente + validade */}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 16 }}>
         <div style={{ flex: 1, minWidth: 160 }}>
-          <label style={{ display: 'block', fontSize: 12, marginBottom: 4 }}>Aluno / Cliente</label>
+          <label style={{ display: 'block', fontSize: 12, marginBottom: 4 }}>Aluno</label>
           <select value={cliente.id} onChange={(e) => escolherAluno(e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
             <option value="">Selecione ou preencha...</option>
             {alunos.map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}
@@ -233,12 +233,13 @@ function gerarProposta({ empresa, nomePacote, itens, totais, validade, cliente }
   const html = `<!DOCTYPE html><html lang="pt-PT"><head><meta charset="UTF-8">
   <title>${escapeHtml(num)}</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@800&display=swap');
     * { margin:0; padding:0; box-sizing:border-box; }
     body { font-family: 'Segoe UI', Arial, sans-serif; color:#323338; padding:40px; font-size:14px; }
-    .head { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:3px solid #0073EA; padding-bottom:20px; margin-bottom:24px; }
-    .head img { height:70px; }
-    .empresa { font-size:20px; font-weight:800; color:#0073EA; }
-    .empresa small { display:block; font-weight:400; color:#676879; font-size:12px; letter-spacing:1px; text-transform:uppercase; }
+    .head { display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #0073EA; padding-bottom:20px; margin-bottom:24px; }
+    .head img { height:110px; }
+    .empresa { font-family:'Montserrat','Segoe UI',Arial,sans-serif; font-size:38px; font-weight:800; color:#111111; letter-spacing:-1px; line-height:1; }
+    .empresa small { display:block; font-family:'Segoe UI',Arial,sans-serif; font-weight:400; color:#676879; font-size:12px; letter-spacing:1px; text-transform:uppercase; margin-top:5px; }
     .doc { text-align:right; }
     .doc h1 { font-size:20px; }
     .doc p { color:#676879; font-size:13px; margin-top:4px; }
@@ -264,7 +265,7 @@ function gerarProposta({ empresa, nomePacote, itens, totais, validade, cliente }
     </div>
 
     ${cli.nome ? `<div class="box">
-      <div class="lbl">Cliente</div>
+      <div class="lbl">Aluno</div>
       <div class="val" style="color:#323338; font-size:16px;">${escapeHtml(cli.nome)}</div>
       ${cli.telefone ? `<div style="color:#676879; font-size:13px;">${escapeHtml(cli.telefone)}</div>` : ''}
       ${cli.email ? `<div style="color:#676879; font-size:13px;">${escapeHtml(cli.email)}</div>` : ''}
