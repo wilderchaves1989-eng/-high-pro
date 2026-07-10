@@ -230,7 +230,7 @@ function AlunoExtratoModal({ linha, empresa, onClose, onChange }) {
 function gerarDocumento({ empresa, aluno, lancamentos, registado, valorCurso }) {
   const num = `EXT ${new Date().getFullYear()}/${String(aluno.id).padStart(4, '0')}`;
   const hoje = new Date().toLocaleDateString('pt-PT');
-  const logoUrl = `${window.location.origin}/images/logo-full.jpeg`;
+  const logoUrl = `${window.location.origin}/images/logo-highpro.svg`;
 
   const linhas = lancamentos.map((l) => `
     <tr>
@@ -243,12 +243,13 @@ function gerarDocumento({ empresa, aluno, lancamentos, registado, valorCurso }) 
   const html = `<!DOCTYPE html><html lang="pt-PT"><head><meta charset="UTF-8">
   <title>${escapeHtml(num)} - ${escapeHtml(aluno.nome)}</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@800&display=swap');
     * { margin:0; padding:0; box-sizing:border-box; }
     body { font-family: 'Segoe UI', Arial, sans-serif; color:#323338; padding:40px; font-size:14px; }
-    .head { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:3px solid #0073EA; padding-bottom:20px; margin-bottom:24px; }
-    .head img { height:70px; }
-    .empresa { font-size:20px; font-weight:800; color:#0073EA; }
-    .empresa small { display:block; font-weight:400; color:#676879; font-size:12px; letter-spacing:1px; text-transform:uppercase; }
+    .head { display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #0073EA; padding-bottom:20px; margin-bottom:24px; }
+    .head img { height:110px; }
+    .empresa { font-family:'Montserrat','Segoe UI',Arial,sans-serif; font-size:38px; font-weight:800; color:#111111; letter-spacing:-1px; line-height:1; }
+    .empresa small { display:block; font-family:'Segoe UI',Arial,sans-serif; font-weight:400; color:#676879; font-size:12px; letter-spacing:1px; text-transform:uppercase; margin-top:5px; }
     .doc { text-align:right; }
     .doc h1 { font-size:20px; color:#323338; }
     .doc p { color:#676879; font-size:13px; margin-top:4px; }
