@@ -301,6 +301,36 @@ export const skills = {
   },
 };
 
+// ── PROPOSTAS (Calculadora de Pacotes) ──────────────────────
+export const propostas = {
+  async listar() {
+    const { data, error } = await supabase.from('propostas').select('*').order('criado_em', { ascending: false });
+    if (error) throw error;
+    return data;
+  },
+
+  async criar(dados) {
+    const { data, error } = await supabase.from('propostas').insert([{
+      aluno_id: dados.alunoId ? parseInt(dados.alunoId) : null,
+      cliente_nome: dados.clienteNome || null,
+      cliente_email: dados.clienteEmail || null,
+      cliente_telefone: dados.clienteTelefone || null,
+      nome_pacote: dados.nomePacote || null,
+      itens: dados.itens || [],
+      desconto_pct: parseFloat(dados.descontoPct) || 0,
+      total: parseFloat(dados.total) || 0,
+      validade: dados.validade || null,
+    }]).select().single();
+    if (error) throw error;
+    return data;
+  },
+
+  async excluir(id) {
+    const { error } = await supabase.from('propostas').delete().eq('id', id);
+    if (error) throw error;
+  },
+};
+
 // ── CONFIG ──────────────────────────────────────────────────
 export const config = {
   async carregar() {

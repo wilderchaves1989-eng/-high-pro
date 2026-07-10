@@ -10,6 +10,7 @@ import CalculadoraPage from '../pages/CalculadoraPage';
 import VisitasPage from '../pages/VisitasPage';
 import EstudoPage from '../pages/EstudoPage';
 import ConsumoPage from '../pages/ConsumoPage';
+import PropostasPage from '../pages/PropostasPage';
 
 const PAGES = {
   dashboard: { title: 'Dashboard', component: Dashboard, action: '+ Novo Aluno' },
@@ -20,6 +21,7 @@ const PAGES = {
   financeiro: { title: 'Financeiro', component: FinanceiroPage, action: null },
   consumo: { title: 'Projecao de Consumo', component: ConsumoPage, action: null },
   calculadora: { title: 'Calculadora de Pacotes', component: CalculadoraPage, action: null },
+  propostas: { title: 'Propostas Guardadas', component: PropostasPage, action: null },
   configuracoes: { title: 'Configuracoes', component: ConfigPage, action: null },
 };
 

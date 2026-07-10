@@ -1,5 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { cursos as cursosApi, alunos as alunosApi, config as configApi } from '../services/api';
+import { cursos as cursosApi, alunos as alunosApi, config as configApi, propostas as propostasApi } from '../services/api';
+
+// Calculo dos totais do pacote (reutilizado na aba Propostas)
+export function calcularTotais(itens, descontoPct) {
+  const totalHoras = itens.reduce((s, i) => s + Number(i.horas || 0), 0);
+  const subtotal = itens.reduce((s, i) => s + Number(i.valor || 0), 0);
+  const pct = Math.max(0, Math.min(100, parseFloat(descontoPct) || 0));
+  const descontoValor = subtotal * (pct / 100);
+  const total = subtotal - descontoValor;
+  const valorHora = totalHoras > 0 ? total / totalHoras : 0;
+  return { totalHoras, subtotal, pct, descontoValor, total, valorHora };
+}
 
 const fmtEUR = (v) => `EUR ${Number(v || 0).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -40,15 +51,23 @@ export function CalculadoraPacotes({ empresa = 'High Pro' }) {
   const remover = (key) => setItens((prev) => prev.filter((i) => i.key !== key));
   const editar = (key, campo, valor) => setItens((prev) => prev.map((i) => (i.key === key ? { ...i, [campo]: valor } : i)));
 
-  const totais = useMemo(() => {
-    const totalHoras = itens.reduce((s, i) => s + Number(i.horas || 0), 0);
-    const subtotal = itens.reduce((s, i) => s + Number(i.valor || 0), 0);
-    const pct = Math.max(0, Math.min(100, parseFloat(descontoPct) || 0));
-    const descontoValor = subtotal * (pct / 100);
-    const total = subtotal - descontoValor;
-    const valorHora = totalHoras > 0 ? total / totalHoras : 0;
-    return { totalHoras, subtotal, pct, descontoValor, total, valorHora };
-  }, [itens, descontoPct]);
+  const totais = useMemo(() => calcularTotais(itens, descontoPct), [itens, descontoPct]);
+
+  const guardar = async () => {
+    if (itens.length === 0) return;
+    try {
+      await propostasApi.criar({
+        alunoId: cliente.id || null,
+        clienteNome: cliente.nome, clienteEmail: cliente.email, clienteTelefone: cliente.telefone,
+        nomePacote, itens, descontoPct: totais.pct, total: totais.total, validade,
+      });
+      alert('Proposta guardada. Veja na aba Propostas.');
+    } catch (err) {
+      alert(/propostas|schema cache|does not exist|relation/i.test(err.message || '')
+        ? 'Falta criar a tabela: rode supabase/propostas.sql no Supabase.'
+        : (err.message || 'Erro ao guardar'));
+    }
+  };
 
   // Texto da proposta para WhatsApp / Email
   const montarTexto = () => {
@@ -160,9 +179,16 @@ export function CalculadoraPacotes({ empresa = 'High Pro' }) {
 
       <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
         <button
+          onClick={guardar}
+          disabled={itens.length === 0}
+          style={{ flex: 1, minWidth: 150, padding: 12, background: itens.length ? 'var(--success)' : 'var(--border)', color: '#fff', border: 'none', borderRadius: 4, fontSize: 14, fontWeight: 600, fontFamily: 'inherit', cursor: itens.length ? 'pointer' : 'not-allowed' }}
+        >
+          Guardar proposta
+        </button>
+        <button
           onClick={() => gerarProposta({ empresa, nomePacote, itens, totais, validade, cliente })}
           disabled={itens.length === 0}
-          style={{ flex: 2, minWidth: 200, padding: 12, background: itens.length ? 'var(--primary)' : 'var(--border)', color: '#fff', border: 'none', borderRadius: 4, fontSize: 14, fontWeight: 600, fontFamily: 'inherit', cursor: itens.length ? 'pointer' : 'not-allowed' }}
+          style={{ flex: 2, minWidth: 180, padding: 12, background: itens.length ? 'var(--primary)' : 'var(--border)', color: '#fff', border: 'none', borderRadius: 4, fontSize: 14, fontWeight: 600, fontFamily: 'inherit', cursor: itens.length ? 'pointer' : 'not-allowed' }}
         >
           Exportar PDF
         </button>
@@ -216,7 +242,7 @@ export default function CalculadoraPage() {
 // ============================================================
 // Documento PDF: proposta / orcamento do pacote
 // ============================================================
-function gerarProposta({ empresa, nomePacote, itens, totais, validade, cliente }) {
+export function gerarProposta({ empresa, nomePacote, itens, totais, validade, cliente }) {
   const num = `PROP ${new Date().getFullYear()}/${uid().slice(-4).toUpperCase()}`;
   const hoje = new Date().toLocaleDateString('pt-PT');
   const validadeFmt = validade ? fmtDataBR(validade) : '';
