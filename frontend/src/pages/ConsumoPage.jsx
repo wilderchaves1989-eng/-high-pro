@@ -143,10 +143,6 @@ export default function ConsumoPage() {
             )}
           </label>
 
-          <div style={{ marginTop: 12, background: 'var(--background)', borderRadius: 6, padding: '8px 12px', fontSize: 12, color: 'var(--text-secondary)' }}>
-            Fator de arco: <strong>{fatorArco.toFixed(3)}</strong> (nivel {params.fatorArcoPorNivel[nivel]} × posicao {posMult}) · pecas praticadas: <strong>{pecas}</strong>{reuso && usos > 1 ? <> · compradas: <strong>{res.pecasNovas}</strong> (reaproveita {usos}x)</> : null}
-          </div>
-
           {/* Parametros editaveis */}
           <button onClick={() => setShowParams(!showParams)} style={{ marginTop: 14, padding: '8px 12px', background: 'transparent', border: '1px solid var(--border)', borderRadius: 4, fontSize: 13, fontFamily: 'inherit', cursor: 'pointer', color: 'var(--text-secondary)', width: '100%' }}>
             {showParams ? 'Ocultar' : 'Ajustar'} material e precos ({proc.toUpperCase()})
@@ -202,7 +198,6 @@ export default function ConsumoPage() {
               </div>
             </div>
           </div>
-          <p style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Motor validado: MIG 5h nivel 0 plana (8 pecas) = 30,91 EUR · TIG 4h nivel 0 sobrecabeca (10 pecas) = 18,99 EUR.</p>
         </div>
       </div>
     </div>
