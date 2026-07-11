@@ -64,10 +64,12 @@ export function custoMinArco(proc, params) {
   return metal + gas;
 }
 
-export function consumoSessao(proc, params, horas, fatorArco, pecas) {
+export function consumoSessao(proc, params, horas, fatorArco, pecas, usosPorPeca = 1) {
   const p = params[proc];
   const arcoMin = horas * 60 * fatorArco;
-  const custoPecas = pecas * custoPeca(proc, params);
+  const usos = Math.max(1, Number(usosPorPeca) || 1);
+  const pecasNovas = Math.ceil((Number(pecas) || 0) / usos); // so conta o material realmente comprado
+  const custoPecas = pecasNovas * custoPeca(proc, params);
   const custoArco = arcoMin * custoMinArco(proc, params);
   const total = (custoPecas + custoArco) * (1 + p.overhead);
   let metalKg;
@@ -84,7 +86,8 @@ export function consumoSessao(proc, params, horas, fatorArco, pecas) {
   return {
     arcoMin: Math.round(arcoMin),
     pecas,
-    materialKg: r2(pecas * massaUnit),
+    pecasNovas,
+    materialKg: r2(pecasNovas * massaUnit),
     metalAdicaoKg: r2(metalKg),
     gasM3: r2(gasM3),
     custoPecas: r2(custoPecas),

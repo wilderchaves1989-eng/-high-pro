@@ -40,6 +40,7 @@ export default function ConsumoPage() {
   const [nivel, setNivel] = useState(0);
   const [posicao, setPosicao] = useState('PA');
   const [pecasManual, setPecasManual] = useState('');
+  const [usos, setUsos] = useState(1);
   const [params, setParams] = useState(clone(PARAMETROS_PADRAO));
   const [showParams, setShowParams] = useState(false);
   const [alunos, setAlunos] = useState([]);
@@ -71,8 +72,8 @@ export default function ConsumoPage() {
   const pecas = pecasManual !== '' ? Math.max(0, parseInt(pecasManual) || 0) : pecasAuto;
 
   const res = useMemo(
-    () => consumoSessao(proc, params, parseFloat(horas) || 0, fatorArco, pecas),
-    [proc, params, horas, fatorArco, pecas],
+    () => consumoSessao(proc, params, parseFloat(horas) || 0, fatorArco, pecas, usos),
+    [proc, params, horas, fatorArco, pecas, usos],
   );
 
   const matLabel = proc === 'tig' ? 'Tubo (kg)' : 'Aco (kg)';
@@ -127,10 +128,11 @@ export default function ConsumoPage() {
               </select>
             </div>
             <div><label style={label}>Nº de pecas</label><input type="number" min="0" value={pecasManual} onChange={(e) => setPecasManual(e.target.value)} placeholder={`auto: ${pecasAuto}`} style={inputStyle} /></div>
+            <div><label style={label}>Usos por peca (reaproveit.)</label><input type="number" min="1" value={usos} onChange={(e) => setUsos(Math.max(1, parseInt(e.target.value) || 1))} style={inputStyle} /></div>
           </div>
 
           <div style={{ marginTop: 12, background: 'var(--background)', borderRadius: 6, padding: '8px 12px', fontSize: 12, color: 'var(--text-secondary)' }}>
-            Fator de arco aplicado: <strong>{fatorArco.toFixed(3)}</strong> (nivel {params.fatorArcoPorNivel[nivel]} × posicao {posMult}) · pecas: <strong>{pecas}</strong>
+            Fator de arco: <strong>{fatorArco.toFixed(3)}</strong> (nivel {params.fatorArcoPorNivel[nivel]} × posicao {posMult}) · pecas praticadas: <strong>{pecas}</strong>{usos > 1 ? <> · compradas: <strong>{res.pecasNovas}</strong> (reaproveita {usos}x)</> : null}
           </div>
 
           {/* Parametros editaveis */}
@@ -167,7 +169,8 @@ export default function ConsumoPage() {
             <div style={{ padding: '8px 20px' }}>
               {[
                 ['Tempo de arco', `${res.arcoMin} min`],
-                ['Nº de pecas', `${res.pecas}`],
+                ['Nº de pecas praticadas', `${res.pecas}`],
+                ...(usos > 1 ? [['Pecas compradas (reaproveita ' + usos + 'x)', `${res.pecasNovas}`]] : []),
                 [matLabel, `${res.materialKg} kg`],
                 [adicaoLabel, `${res.metalAdicaoKg} kg`],
                 ...(proc !== 'eletrodo' ? [['Gas', `${res.gasM3} m3`]] : []),
