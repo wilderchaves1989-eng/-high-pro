@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { alunos as alunosApi, cursos as cursosApi } from '../services/api';
 import Modal from '../components/Modal';
+import AlunoDetalheModal from './AlunoDetalheModal';
 import useAuthStore from '../store/authStore';
 
 const STATUS_STYLES = {
@@ -26,6 +27,7 @@ export default function AlunosPage({ actionTrigger }) {
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState(initialForm);
   const [editId, setEditId] = useState(null);
+  const [detalhe, setDetalhe] = useState(null);
   const canEdit = useAuthStore.getState().isGestorOrAtendimento();
 
   const carregar = useCallback(() => {
@@ -100,7 +102,7 @@ export default function AlunosPage({ actionTrigger }) {
               {alunos.length ? alunos.map((a) => {
                 const ss = STATUS_STYLES[a.status] || STATUS_STYLES.LEAD;
                 return (
-                  <tr key={a.id} style={{ cursor: 'pointer' }} onClick={() => abrirModal(a)}>
+                  <tr key={a.id} style={{ cursor: 'pointer' }} onClick={() => setDetalhe(a)}>
                     <td style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', fontWeight: 600 }}>{a.nome}</td>
                     <td style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)' }}>{a.email}</td>
                     <td style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)' }}>{a.telefone || ''}</td>
@@ -110,6 +112,7 @@ export default function AlunosPage({ actionTrigger }) {
                       <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: ss.bg, color: ss.color }}>{STATUS_LABEL[a.status]}</span>
                     </td>
                     <td style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }} onClick={(e) => e.stopPropagation()}>
+                      {canEdit && <button onClick={() => abrirModal(a)} style={{ padding: '2px 8px', background: 'transparent', border: 'none', color: 'var(--primary)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Editar</button>}
                       {canEdit && <button onClick={() => excluir(a.id)} style={{ padding: '2px 8px', background: 'transparent', border: 'none', color: 'var(--danger)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Excluir</button>}
                     </td>
                   </tr>
@@ -174,6 +177,14 @@ export default function AlunosPage({ actionTrigger }) {
           <button type="submit" style={{ width: '100%', padding: 10, background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 4, fontSize: 14, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer', marginTop: 8 }}>Guardar</button>
         </form>
       </Modal>
+
+      {detalhe && (
+        <AlunoDetalheModal
+          aluno={detalhe}
+          onClose={() => setDetalhe(null)}
+          onEditar={(a) => { setDetalhe(null); abrirModal(a); }}
+        />
+      )}
     </div>
   );
 }

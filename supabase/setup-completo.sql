@@ -84,3 +84,25 @@ drop policy if exists "Authenticated read planos_custo" on planos_custo;
 drop policy if exists "Authenticated all planos_custo" on planos_custo;
 create policy "Authenticated read planos_custo" on planos_custo for select to authenticated using (true);
 create policy "Authenticated all planos_custo" on planos_custo for all to authenticated using (true);
+
+-- 6) PERFIL COMPORTAMENTAL: dossie de formacao por aluno
+create table if not exists perfil_comportamental (
+  id serial primary key,
+  aluno_id integer not null unique references alunos(id) on delete cascade,
+  estilo_aprendizagem text,
+  motivacao text,
+  postura_seguranca text,
+  trabalho_equipe text,
+  risco_desistencia text,
+  pontos_fortes text,
+  pontos_a_desenvolver text,
+  objetivo_carreira text,
+  observacoes text,
+  atualizado_em timestamptz not null default now()
+);
+create index if not exists idx_perfil_aluno on perfil_comportamental(aluno_id);
+alter table perfil_comportamental enable row level security;
+drop policy if exists "Authenticated read perfil_comportamental" on perfil_comportamental;
+drop policy if exists "Authenticated all perfil_comportamental" on perfil_comportamental;
+create policy "Authenticated read perfil_comportamental" on perfil_comportamental for select to authenticated using (true);
+create policy "Authenticated all perfil_comportamental" on perfil_comportamental for all to authenticated using (true);

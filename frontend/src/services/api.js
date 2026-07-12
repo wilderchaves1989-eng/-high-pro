@@ -361,6 +361,33 @@ export const planosCusto = {
   },
 };
 
+// ── PERFIL COMPORTAMENTAL (dossie de formacao) ──────────────
+export const perfilComportamental = {
+  async buscar(alunoId) {
+    const { data, error } = await supabase.from('perfil_comportamental').select('*').eq('aluno_id', alunoId).maybeSingle();
+    if (error) throw error;
+    return data;
+  },
+
+  async salvar(alunoId, dados) {
+    const { data, error } = await supabase.from('perfil_comportamental').upsert({
+      aluno_id: parseInt(alunoId),
+      estilo_aprendizagem: dados.estiloAprendizagem || null,
+      motivacao: dados.motivacao || null,
+      postura_seguranca: dados.posturaSeguranca || null,
+      trabalho_equipe: dados.trabalhoEquipe || null,
+      risco_desistencia: dados.riscoDesistencia || null,
+      pontos_fortes: dados.pontosFortes || null,
+      pontos_a_desenvolver: dados.pontosADesenvolver || null,
+      objetivo_carreira: dados.objetivoCarreira || null,
+      observacoes: dados.observacoes || null,
+      atualizado_em: new Date().toISOString(),
+    }, { onConflict: 'aluno_id' }).select().single();
+    if (error) throw error;
+    return data;
+  },
+};
+
 // ── CONFIG ──────────────────────────────────────────────────
 export const config = {
   async carregar() {
