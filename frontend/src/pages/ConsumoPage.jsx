@@ -361,6 +361,7 @@ export function gerarRelatorio({ empresa, nomePlano, alunoNome, resultadosPlano,
       <td class="c">${l.proc === 'eletrodo' ? '--' : `${fmtN(l.res.gasM3)} m3`}</td>
     </tr>`).join('');
 
+  const temConsumoDetalhado = resultadosPlano.some((l) => l.res.arcoMin != null);
   const procsUsados = [...new Set(resultadosPlano.map((l) => l.proc))];
   const materiaisHtml = procsUsados.map((proc) => {
     const paramsProc = p[proc] || PARAMETROS_PADRAO[proc];
@@ -426,10 +427,14 @@ export function gerarRelatorio({ empresa, nomePlano, alunoNome, resultadosPlano,
     </table>
 
     <div style="font-weight:700; font-size:15px; margin:0 0 10px; color:#323338;">Consumo Previsto</div>
+    ${temConsumoDetalhado ? `
     <table>
       <thead><tr><th>Descricao</th><th class="c">Processo</th><th class="c">Arco</th><th class="c">Material</th><th class="c">Adicao</th><th class="c">Gas</th></tr></thead>
       <tbody>${consumoLinhas}</tbody>
-    </table>
+    </table>` : `
+    <div class="box" style="background:#FFF9E6;">
+      <div style="font-size:13px; color:#8A6D00;">Este plano foi guardado antes do detalhe de consumiveis existir. Reabra na Calculadora de Consumo, monte o plano novamente e clique em "Guardar plano" para incluir esta informacao nos proximos relatorios.</div>
+    </div>`}
 
     <div class="totais">
       <div class="row"><span>Total de horas</span><span>${totais.totalHoras}h</span></div>
