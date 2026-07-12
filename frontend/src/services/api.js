@@ -191,15 +191,40 @@ export const users = {
     return data;
   },
 
-  // Nao e possivel criar utilizadores a partir do browser: a API de admin do
-  // Supabase exige a chave service_role, que nunca deve existir no cliente.
-  // O antigo fallback usava supabase.auth.signUp(), que autentica como o
-  // NOVO utilizador e substitui a sessao de quem estava logado (sequestro
-  // de sessao do admin). Falha explicitamente em vez disso.
-  async criar() {
-    throw new Error('Nao e possivel criar acessos por aqui. Crie o utilizador em Supabase Dashboard -> Authentication -> Users -> Add user (marque "Auto Confirm User"), depois volte aqui e clique em Editar na nova linha para definir o perfil.');
+  // Criar/editar login (email/senha) exige a chave service_role, que nunca
+  // pode existir no navegador. Estas chamadas vao para /api/admin-users
+  // (funcao serverless da Vercel), que guarda a service_role so no servidor
+  // e so a usa depois de confirmar que quem chamou esta autenticado e e Gestor.
+  async criar(dados) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Sessao expirada. Faca login novamente.');
+    const res = await fetch('/api/admin-users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ nome: dados.nome, email: dados.email, senha: dados.senha, perfil: dados.perfil }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json.error || 'Erro ao criar credencial');
+    return json;
   },
 
+  // Atualiza email e/ou senha do login (auth.users) - separado de atualizar()
+  // porque exige a mesma rota protegida por service_role.
+  async atualizarLogin(id, dados) {
+    if (!dados.email && !dados.senha) return null;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Sessao expirada. Faca login novamente.');
+    const res = await fetch('/api/admin-users', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ id, email: dados.email, senha: dados.senha }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json.error || 'Erro ao atualizar login');
+    return json;
+  },
+
+  // Atualiza os campos do perfil (nome/perfil/ativo) - tabela profiles, via RLS normal.
   async atualizar(id, dados) {
     const update = {};
     if (dados.nome) update.nome = dados.nome;
