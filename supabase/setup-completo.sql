@@ -4,8 +4,10 @@
 -- ============================================================
 
 -- 1) LOGIN: confirma todos os acessos criados (destrava o login)
+-- Nota: "confirmed_at" e coluna gerada pelo Postgres/Supabase (derivada de
+-- email_confirmed_at) e nao pode ser definida diretamente.
 update auth.users
-set email_confirmed_at = now(), confirmed_at = now()
+set email_confirmed_at = now()
 where email_confirmed_at is null;
 
 -- 2) FINANCEIRO: historico de lancamentos por aluno
