@@ -7,6 +7,7 @@ const METODOS = ['Dinheiro', 'MB Way', 'Transferencia', 'Multibanco', 'Cartao', 
 const fmtEUR = (v) => `EUR ${Number(v || 0).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const hojeStr = () => new Date().toISOString().split('T')[0];
 const fmtData = (d) => (d ? new Date(d + 'T00:00:00').toLocaleDateString('pt-PT') : '--');
+const primeiroDiaMesStr = () => { const d = new Date(); d.setDate(1); return d.toISOString().split('T')[0]; };
 
 export default function FinanceiroPage() {
   const [alunos, setAlunos] = useState([]);
@@ -15,6 +16,8 @@ export default function FinanceiroPage() {
   const [busca, setBusca] = useState('');
   const [sel, setSel] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [periodoInicio, setPeriodoInicio] = useState(primeiroDiaMesStr());
+  const [periodoFim, setPeriodoFim] = useState(hojeStr());
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -81,6 +84,24 @@ export default function FinanceiroPage() {
             <div style={{ fontSize: 24, fontWeight: 700, marginTop: 4 }}>{c.value}</div>
           </div>
         ))}
+      </div>
+
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 1px 3px rgba(0,0,0,0.04)', marginBottom: 16, padding: '14px 20px', display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+        <div>
+          <label style={{ display: 'block', fontSize: 12, marginBottom: 4, color: 'var(--text-secondary)' }}>Relatorio por periodo — de</label>
+          <input type="date" value={periodoInicio} onChange={(e) => setPeriodoInicio(e.target.value)} style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: 4, fontFamily: 'inherit', fontSize: 14, outline: 'none' }} />
+        </div>
+        <div>
+          <label style={{ display: 'block', fontSize: 12, marginBottom: 4, color: 'var(--text-secondary)' }}>ate</label>
+          <input type="date" value={periodoFim} onChange={(e) => setPeriodoFim(e.target.value)} style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: 4, fontFamily: 'inherit', fontSize: 14, outline: 'none' }} />
+        </div>
+        <button
+          onClick={() => gerarRelatorioPeriodo({ empresa, lancamentos: lancs, inicio: periodoInicio, fim: periodoFim })}
+          disabled={!periodoInicio || !periodoFim}
+          style={{ padding: '9px 16px', background: periodoInicio && periodoFim ? 'var(--primary)' : 'var(--border)', color: '#fff', border: 'none', borderRadius: 4, fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: periodoInicio && periodoFim ? 'pointer' : 'not-allowed' }}
+        >
+          Gerar Relatorio (PDF)
+        </button>
       </div>
 
       <div style={{ marginBottom: 16 }}>
@@ -301,6 +322,111 @@ function gerarDocumento({ empresa, aluno, lancamentos, registado, valorCurso }) 
 
   const w = window.open('', '_blank');
   if (!w) { alert('Permita pop-ups para gerar o documento.'); return; }
+  w.document.write(html);
+  w.document.close();
+}
+
+// ============================================================
+// Documento PDF: relatorio de lancamentos por periodo (todos os alunos)
+// ============================================================
+function gerarRelatorioPeriodo({ empresa, lancamentos, inicio, fim }) {
+  const doPeriodo = (lancamentos || [])
+    .filter((l) => (l.data || '') >= inicio && (l.data || '') <= fim)
+    .sort((a, b) => (a.data || '').localeCompare(b.data || '') || (a.id - b.id));
+
+  const num = `REL ${new Date().getFullYear()}/${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+  const hoje = new Date().toLocaleDateString('pt-PT');
+  const logoUrl = `${window.location.origin}/images/logo-highpro.svg`;
+  const totalPeriodo = doPeriodo.reduce((s, l) => s + Number(l.valor || 0), 0);
+
+  const porAluno = {};
+  doPeriodo.forEach((l) => {
+    const nome = l.aluno?.nome || 'Sem aluno';
+    porAluno[nome] = (porAluno[nome] || 0) + Number(l.valor || 0);
+  });
+  const resumoAlunos = Object.entries(porAluno).sort((a, b) => b[1] - a[1]);
+
+  const linhas = doPeriodo.map((l) => `
+    <tr>
+      <td>${fmtData(l.data)}</td>
+      <td>${escapeHtml(l.aluno?.nome || '--')}</td>
+      <td>${escapeHtml(l.descricao || 'Pagamento')}</td>
+      <td>${escapeHtml(l.metodo || '--')}</td>
+      <td class="r">${fmtEUR(l.valor)}</td>
+    </tr>`).join('');
+
+  const resumoLinhas = resumoAlunos.map(([nome, total]) => `
+    <tr><td>${escapeHtml(nome)}</td><td class="r">${fmtEUR(total)}</td></tr>`).join('');
+
+  const html = `<!DOCTYPE html><html lang="pt-PT"><head><meta charset="UTF-8">
+  <title>${escapeHtml(num)}</title>
+  <style>
+    @font-face { font-family:'Clear Sans'; font-weight:700; src:url('${window.location.origin}/fonts/ClearSans-Bold.woff') format('woff'); }
+    @font-face { font-family:'Clear Sans'; font-weight:400; src:url('${window.location.origin}/fonts/ClearSans-Regular.woff') format('woff'); }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; color:#323338; padding:40px; font-size:14px; }
+    .head { display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #0073EA; padding-bottom:20px; margin-bottom:24px; }
+    .head img { height:110px; }
+    .empresa { font-family:'Clear Sans','Segoe UI',Arial,sans-serif; font-size:38px; font-weight:700; color:#111111; letter-spacing:-0.5px; line-height:1; }
+    .empresa small { display:block; font-family:'Clear Sans','Segoe UI',Arial,sans-serif; font-weight:400; color:#676879; font-size:16px; letter-spacing:1px; text-transform:uppercase; margin-top:6px; }
+    .doc { text-align:right; }
+    .doc h1 { font-size:20px; color:#323338; }
+    .doc p { color:#676879; font-size:13px; margin-top:4px; }
+    .box { background:#F5F7FC; border-radius:8px; padding:16px 20px; margin-bottom:24px; }
+    .box .lbl { font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:#9699A6; }
+    .box .val { font-size:18px; font-weight:700; color:#0073EA; }
+    table { width:100%; border-collapse:collapse; margin-bottom:24px; }
+    th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.3px; color:#9699A6; border-bottom:2px solid #E6E9EF; padding:10px 8px; }
+    td { padding:10px 8px; border-bottom:1px solid #E6E9EF; }
+    .r { text-align:right; }
+    .totais { margin-left:auto; width:280px; }
+    .totais .row { display:flex; justify-content:space-between; padding:6px 0; }
+    .totais .grand { border-top:2px solid #0073EA; margin-top:6px; padding-top:10px; font-size:20px; font-weight:800; color:#0073EA; }
+    .section-title { font-weight:700; font-size:15px; margin:0 0 10px; color:#323338; }
+    .foot { margin-top:40px; text-align:center; color:#9699A6; font-size:12px; border-top:1px solid #E6E9EF; padding-top:16px; }
+    @media print { body { padding:20px; } .noprint { display:none; } }
+  </style></head><body>
+    <div class="head">
+      <div style="display:flex; gap:14px; align-items:center;">
+        <img src="${logoUrl}" alt="" onerror="this.style.display='none'"/>
+        <div class="empresa">${escapeHtml(empresa)}<small>Escola de Solda</small></div>
+      </div>
+      <div class="doc"><h1>RELATORIO FINANCEIRO</h1><p>${escapeHtml(num)}</p><p>Data: ${hoje}</p></div>
+    </div>
+
+    <div class="box">
+      <div class="lbl">Periodo</div>
+      <div class="val">${fmtData(inicio)} a ${fmtData(fim)}</div>
+      <div style="color:#676879; font-size:13px; margin-top:6px;">${doPeriodo.length} lancamento(s) · ${resumoAlunos.length} aluno(s)</div>
+    </div>
+
+    <div class="section-title">Lancamentos do Periodo</div>
+    <table>
+      <thead><tr><th>Data</th><th>Aluno</th><th>Descricao</th><th>Metodo</th><th class="r">Valor</th></tr></thead>
+      <tbody>${linhas.length ? linhas : '<tr><td colspan="5" style="text-align:center; color:#9699A6; padding:20px;">Nenhum lancamento neste periodo.</td></tr>'}</tbody>
+    </table>
+
+    ${resumoAlunos.length > 1 ? `
+    <div class="section-title">Resumo por Aluno</div>
+    <table>
+      <thead><tr><th>Aluno</th><th class="r">Total no periodo</th></tr></thead>
+      <tbody>${resumoLinhas}</tbody>
+    </table>` : ''}
+
+    <div class="totais">
+      <div class="row grand"><span>Total do Periodo</span><span>${fmtEUR(totalPeriodo)}</span></div>
+    </div>
+
+    <div class="foot">Relatorio interno gerado por ${escapeHtml(empresa)} em ${hoje}.</div>
+
+    <div class="noprint" style="text-align:center; margin-top:30px;">
+      <button onclick="window.print()" style="padding:10px 24px; background:#0073EA; color:#fff; border:none; border-radius:6px; font-size:14px; cursor:pointer;">Imprimir / Guardar PDF</button>
+    </div>
+    <script>window.onload = function(){ setTimeout(function(){ window.print(); }, 400); };</script>
+  </body></html>`;
+
+  const w = window.open('', '_blank');
+  if (!w) { alert('Permita pop-ups para gerar o relatorio.'); return; }
   w.document.write(html);
   w.document.close();
 }
