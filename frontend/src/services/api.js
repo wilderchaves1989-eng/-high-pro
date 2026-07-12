@@ -4,7 +4,11 @@ import { supabase } from '../lib/supabase';
 export const alunos = {
   async listar({ busca, cursoId, status } = {}) {
     let query = supabase.from('alunos').select('*, cursos(id, nome, valor, carga, processo)').order('criado_em', { ascending: false });
-    if (busca) query = query.or(`nome.ilike.%${busca}%,email.ilike.%${busca}%,telefone.ilike.%${busca}%`);
+    if (busca) {
+      // Remove caracteres que quebram a sintaxe do filtro .or() do PostgREST (injecao de filtro)
+      const termo = busca.replace(/[,()]/g, '').trim();
+      if (termo) query = query.or(`nome.ilike.%${termo}%,email.ilike.%${termo}%,telefone.ilike.%${termo}%`);
+    }
     if (cursoId) query = query.eq('curso_id', cursoId);
     if (status) query = query.eq('status', status);
     const { data, error } = await query;
@@ -187,24 +191,13 @@ export const users = {
     return data;
   },
 
-  async criar(dados) {
-    const { data, error } = await supabase.auth.admin?.createUser?.({
-      email: dados.email.toLowerCase(),
-      password: dados.senha,
-      email_confirm: true,
-      user_metadata: { nome: dados.nome, perfil: dados.perfil || 'ATENDIMENTO' },
-    });
-    // Fallback: se admin API nao disponivel, usar signUp normal
-    if (error || !data) {
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email: dados.email.toLowerCase(),
-        password: dados.senha,
-        options: { data: { nome: dados.nome, perfil: dados.perfil || 'ATENDIMENTO' } },
-      });
-      if (signUpError) throw signUpError;
-      return signUpData;
-    }
-    return data;
+  // Nao e possivel criar utilizadores a partir do browser: a API de admin do
+  // Supabase exige a chave service_role, que nunca deve existir no cliente.
+  // O antigo fallback usava supabase.auth.signUp(), que autentica como o
+  // NOVO utilizador e substitui a sessao de quem estava logado (sequestro
+  // de sessao do admin). Falha explicitamente em vez disso.
+  async criar() {
+    throw new Error('Nao e possivel criar acessos por aqui. Crie o utilizador em Supabase Dashboard -> Authentication -> Users -> Add user (marque "Auto Confirm User"), depois volte aqui e clique em Editar na nova linha para definir o perfil.');
   },
 
   async atualizar(id, dados) {

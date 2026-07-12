@@ -23,6 +23,7 @@ export default function ConfigPage() {
   const [modalCurso, setModalCurso] = useState(false);
   const [modalCred, setModalCred] = useState(false);
   const [modalCalc, setModalCalc] = useState(false);
+  const [modalCriarInfo, setModalCriarInfo] = useState(false);
   const [cursoForm, setCursoForm] = useState(initialCurso);
   const [credForm, setCredForm] = useState(initialCred);
   const [editCursoId, setEditCursoId] = useState(null);
@@ -88,7 +89,7 @@ export default function ConfigPage() {
       else await usersApi.criar(data);
       setModalCred(false);
       setUsers(await usersApi.listar());
-    } catch (err) { alert(err.response?.data?.error || 'Erro'); }
+    } catch (err) { alert(err.message || 'Erro'); }
   };
 
   const excluirCred = async (id) => {
@@ -152,7 +153,7 @@ export default function ConfigPage() {
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span>Credenciais de Acesso</span>
-          <button onClick={() => abrirCred()} style={{ padding: '6px 14px', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 4, fontSize: 12, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer' }}>+ Criar Acesso</button>
+          <button onClick={() => setModalCriarInfo(true)} style={{ padding: '6px 14px', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 4, fontSize: 12, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer' }}>+ Criar Acesso</button>
         </div>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
@@ -240,8 +241,21 @@ export default function ConfigPage() {
         <CalculadoraPacotes empresa={sistemaNome} />
       </Modal>
 
-      {/* Modal Credencial */}
-      <Modal open={modalCred} onClose={() => setModalCred(false)} title={editCredId ? 'Editar Credencial' : 'Criar Credencial'} maxWidth={550}>
+      {/* Modal: como criar acesso (instrucoes, sem sequestrar a sessao do admin) */}
+      <Modal open={modalCriarInfo} onClose={() => setModalCriarInfo(false)} title="Criar Acesso" maxWidth={520}>
+        <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 14 }}>Por seguranca, novos acessos sao criados direto no Supabase (o navegador nao tem permissao para criar utilizadores).</p>
+        <ol style={{ fontSize: 13, paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <li>Abra o <strong>Supabase Dashboard</strong> do projeto.</li>
+          <li>Va em <strong>Authentication → Users</strong>.</li>
+          <li>Clique em <strong>Add user</strong>, preencha email e senha.</li>
+          <li>Marque <strong>Auto Confirm User</strong> e clique em Create.</li>
+          <li>Volte aqui, clique em <strong>Editar</strong> na nova linha (o acesso aparece automaticamente) e defina o Perfil correto.</li>
+        </ol>
+        <button onClick={async () => { setModalCriarInfo(false); setUsers(await usersApi.listar()); }} style={{ width: '100%', marginTop: 16, padding: 10, background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 4, fontSize: 14, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer' }}>Ja criei, atualizar lista</button>
+      </Modal>
+
+      {/* Modal Credencial (edicao) */}
+      <Modal open={modalCred} onClose={() => setModalCred(false)} title="Editar Credencial" maxWidth={550}>
         <form onSubmit={salvarCred}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div style={{ marginBottom: 14 }}>
@@ -249,12 +263,8 @@ export default function ConfigPage() {
               <input required value={credForm.nome} onChange={(e) => setCredForm({ ...credForm, nome: e.target.value })} style={inputStyle} />
             </div>
             <div style={{ marginBottom: 14 }}>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 }}>Email <span style={{ color: 'var(--danger)' }}>*</span></label>
-              <input required type="email" value={credForm.email} onChange={(e) => setCredForm({ ...credForm, email: e.target.value })} style={inputStyle} />
-            </div>
-            <div style={{ marginBottom: 14 }}>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 }}>Senha {!editCredId && <span style={{ color: 'var(--danger)' }}>*</span>}</label>
-              <input type="password" required={!editCredId} value={credForm.senha} onChange={(e) => setCredForm({ ...credForm, senha: e.target.value })} placeholder={editCredId ? 'Deixe vazio para manter' : ''} style={inputStyle} />
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 }}>Email</label>
+              <input disabled value={credForm.email} style={{ ...inputStyle, background: 'var(--background)', color: 'var(--text-tertiary)', cursor: 'not-allowed' }} title="Email e senha so podem ser alterados no Supabase Dashboard" />
             </div>
             <div style={{ marginBottom: 14 }}>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 }}>Perfil</label>
