@@ -28,6 +28,7 @@ export default function ConfigPage() {
   const [editCursoId, setEditCursoId] = useState(null);
   const [editCredId, setEditCredId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [mostrarSenha, setMostrarSenha] = useState(false);
 
   useEffect(() => {
     configApi.carregar().then((c) => setSistemaNome(c.sistemaNome || 'High Pro')).catch(() => {});
@@ -79,6 +80,7 @@ export default function ConfigPage() {
       setEditCredId(null);
       setCredForm(initialCred);
     }
+    setMostrarSenha(false);
     setModalCred(true);
   };
 
@@ -272,8 +274,11 @@ export default function ConfigPage() {
               <input required type="email" value={credForm.email} onChange={(e) => setCredForm({ ...credForm, email: e.target.value })} style={inputStyle} />
             </div>
             <div style={{ marginBottom: 14 }}>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 }}>Senha {!editCredId && <span style={{ color: 'var(--danger)' }}>*</span>}</label>
-              <input type="password" required={!editCredId} minLength={6} value={credForm.senha} onChange={(e) => setCredForm({ ...credForm, senha: e.target.value })} placeholder={editCredId ? 'Deixe vazio para manter' : 'Minimo 6 caracteres'} style={inputStyle} />
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 }}>{editCredId ? 'Nova senha' : 'Senha'} {!editCredId && <span style={{ color: 'var(--danger)' }}>*</span>}</label>
+              <div style={{ position: 'relative' }}>
+                <input type={mostrarSenha ? 'text' : 'password'} required={!editCredId} minLength={6} value={credForm.senha} onChange={(e) => setCredForm({ ...credForm, senha: e.target.value })} placeholder={editCredId ? 'Deixe vazio para manter' : 'Minimo 6 caracteres'} style={{ ...inputStyle, paddingRight: 64 }} />
+                <button type="button" onClick={() => setMostrarSenha(!mostrarSenha)} style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', padding: '5px 10px', background: 'transparent', border: 'none', color: 'var(--primary)', fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>{mostrarSenha ? 'Ocultar' : 'Mostrar'}</button>
+              </div>
             </div>
             <div style={{ marginBottom: 14 }}>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 }}>Perfil</label>
