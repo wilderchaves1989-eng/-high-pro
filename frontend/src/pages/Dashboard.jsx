@@ -8,11 +8,14 @@ export default function Dashboard() {
   const [stats, setStats] = useState({ total_alunos: 0, agenda_hoje: 0, cursos_ativos: 0 });
   const [proximas, setProximas] = useState([]);
   const [cursoStats, setCursoStats] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    dashboard.stats().then(setStats).catch(() => {});
-    aulasApi.proximas().then(setProximas).catch(() => {});
-    dashboard.cursoStats().then(setCursoStats).catch(() => {});
+    Promise.all([
+      dashboard.stats().then(setStats).catch(() => {}),
+      aulasApi.proximas().then(setProximas).catch(() => {}),
+      dashboard.cursoStats().then(setCursoStats).catch(() => {}),
+    ]).finally(() => setLoading(false));
   }, []);
 
   const cards = [
@@ -38,7 +41,9 @@ export default function Dashboard() {
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 1px 3px rgba(0,0,0,0.04)', marginBottom: 16 }}>
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', fontWeight: 500, fontSize: 14 }}>Processos de Solda Mais Procurados</div>
         <div style={{ padding: 20 }}>
-          {cursoStats.length ? (
+          {loading ? (
+            <div style={{ textAlign: 'center', color: 'var(--text-tertiary)', padding: 20 }}>A carregar...</div>
+          ) : cursoStats.length ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {cursoStats.map((c, i) => {
                 const maxCount = Math.max(...cursoStats.map(x => x.count), 1);
@@ -78,7 +83,9 @@ export default function Dashboard() {
               </tr>
             </thead>
             <tbody>
-              {proximas.length ? proximas.map((a) => {
+              {loading ? (
+                <tr><td colSpan={4} style={{ padding: 24, textAlign: 'center', color: 'var(--text-tertiary)' }}>A carregar...</td></tr>
+              ) : proximas.length ? proximas.map((a) => {
                 const sc = STATUS_COLORS[a.estado] || STATUS_COLORS.PENDENTE;
                 return (
                   <tr key={a.id}>

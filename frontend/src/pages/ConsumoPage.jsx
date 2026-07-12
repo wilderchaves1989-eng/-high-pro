@@ -63,12 +63,13 @@ export default function ConsumoPage() {
   const [alunos, setAlunos] = useState([]);
   const [alunoId, setAlunoId] = useState('');
   const [empresa, setEmpresa] = useState('High Pro');
+  const [carregandoAlunos, setCarregandoAlunos] = useState(true);
 
   // Plano de custo (varias linhas, cada uma com seu processo e posicao)
   const [nomePlano, setNomePlano] = useState('');
   const [linhas, setLinhas] = useState([]);
 
-  useEffect(() => { alunosApi.listar().then(setAlunos).catch(() => {}); }, []);
+  useEffect(() => { alunosApi.listar().then(setAlunos).catch(() => {}).finally(() => setCarregandoAlunos(false)); }, []);
   useEffect(() => { configApi.carregar().then((c) => c?.sistemaNome && setEmpresa(c.sistemaNome)).catch(() => {}); }, []);
 
   const setParam = (campo, valor) => setParams((prev) => {
@@ -153,7 +154,7 @@ export default function ConsumoPage() {
           <div style={{ marginBottom: 14 }}>
             <label style={label}>Aluno (opcional — preenche pelo curso)</label>
             <select value={alunoId} onChange={(e) => escolherAluno(e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
-              <option value="">Manual...</option>
+              <option value="">{carregandoAlunos ? 'A carregar alunos...' : 'Manual...'}</option>
               {alunos.filter((a) => a.cursos).map((a) => <option key={a.id} value={a.id}>{a.nome} — {a.cursos.nome}</option>)}
             </select>
             {alunoSel?.cursos && (

@@ -30,9 +30,14 @@ export function CalculadoraPacotes({ empresa = 'High Pro' }) {
   const [addSel, setAddSel] = useState('');
   const [cliente, setCliente] = useState({ id: '', nome: '', email: '', telefone: '' });
   const [validade, setValidade] = useState(daquiDias(15));
+  const [carregandoOpcoes, setCarregandoOpcoes] = useState(true);
 
-  useEffect(() => { cursosApi.listar().then(setCursos).catch(() => {}); }, []);
-  useEffect(() => { alunosApi.listar().then(setAlunos).catch(() => {}); }, []);
+  useEffect(() => {
+    Promise.all([
+      cursosApi.listar().then(setCursos).catch(() => {}),
+      alunosApi.listar().then(setAlunos).catch(() => {}),
+    ]).finally(() => setCarregandoOpcoes(false));
+  }, []);
 
   const escolherAluno = (id) => {
     const a = alunos.find((x) => String(x.id) === String(id));
@@ -110,7 +115,7 @@ export function CalculadoraPacotes({ empresa = 'High Pro' }) {
         <div style={{ flex: 2, minWidth: 200 }}>
           <label style={{ display: 'block', fontSize: 12, marginBottom: 4 }}>Adicionar curso</label>
           <select value={addSel} onChange={(e) => addCurso(e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
-            <option value="">Selecione um curso...</option>
+            <option value="">{carregandoOpcoes ? 'A carregar cursos...' : 'Selecione um curso...'}</option>
             {cursos.map((c) => <option key={c.id} value={c.id}>{c.nome} ({c.carga}h - {fmtEUR(c.valor)})</option>)}
           </select>
         </div>
@@ -122,7 +127,7 @@ export function CalculadoraPacotes({ empresa = 'High Pro' }) {
         <div style={{ flex: 1, minWidth: 160 }}>
           <label style={{ display: 'block', fontSize: 12, marginBottom: 4 }}>Aluno</label>
           <select value={cliente.id} onChange={(e) => escolherAluno(e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
-            <option value="">Selecione ou preencha...</option>
+            <option value="">{carregandoOpcoes ? 'A carregar alunos...' : 'Selecione ou preencha...'}</option>
             {alunos.map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}
           </select>
         </div>

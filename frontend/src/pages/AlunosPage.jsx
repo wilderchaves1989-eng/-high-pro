@@ -28,10 +28,12 @@ export default function AlunosPage({ actionTrigger }) {
   const [form, setForm] = useState(initialForm);
   const [editId, setEditId] = useState(null);
   const [detalhe, setDetalhe] = useState(null);
+  const [loading, setLoading] = useState(true);
   const canEdit = useAuthStore.getState().isGestorOrAtendimento();
 
   const carregar = useCallback(() => {
-    alunosApi.listar({ busca, cursoId: filtroCurso, status: filtroStatus }).then(setAlunos).catch(() => {});
+    setLoading(true);
+    alunosApi.listar({ busca, cursoId: filtroCurso, status: filtroStatus }).then(setAlunos).catch(() => {}).finally(() => setLoading(false));
   }, [busca, filtroCurso, filtroStatus]);
 
   useEffect(() => { carregar(); }, [carregar]);
@@ -57,7 +59,7 @@ export default function AlunosPage({ actionTrigger }) {
       setModal(false);
       carregar();
     } catch (err) {
-      alert(err.response?.data?.error || 'Erro');
+      alert(err.message || 'Erro');
     }
   };
 
@@ -99,7 +101,9 @@ export default function AlunosPage({ actionTrigger }) {
               </tr>
             </thead>
             <tbody>
-              {alunos.length ? alunos.map((a) => {
+              {loading ? (
+                <tr><td colSpan={7} style={{ padding: 24, textAlign: 'center', color: 'var(--text-tertiary)' }}>A carregar...</td></tr>
+              ) : alunos.length ? alunos.map((a) => {
                 const ss = STATUS_STYLES[a.status] || STATUS_STYLES.LEAD;
                 return (
                   <tr key={a.id} style={{ cursor: 'pointer' }} onClick={() => setDetalhe(a)}>

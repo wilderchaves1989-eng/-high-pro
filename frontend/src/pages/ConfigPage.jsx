@@ -28,12 +28,15 @@ export default function ConfigPage() {
   const [credForm, setCredForm] = useState(initialCred);
   const [editCursoId, setEditCursoId] = useState(null);
   const [editCredId, setEditCredId] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     configApi.carregar().then((c) => setSistemaNome(c.sistemaNome || 'High Pro')).catch(() => {});
-    cursosApi.listar().then(setCursos).catch(() => {});
-    usersApi.listar().then(setUsers).catch(() => {});
     alunosApi.listar().then(setAlunos).catch(() => {});
+    Promise.all([
+      cursosApi.listar().then(setCursos).catch(() => {}),
+      usersApi.listar().then(setUsers).catch(() => {}),
+    ]).finally(() => setLoading(false));
   }, []);
 
   const salvarNome = () => {
@@ -59,7 +62,7 @@ export default function ConfigPage() {
       else await cursosApi.criar(cursoForm);
       setModalCurso(false);
       setCursos(await cursosApi.listar());
-    } catch (err) { alert(err.response?.data?.error || 'Erro'); }
+    } catch (err) { alert(err.message || 'Erro'); }
   };
 
   const excluirCurso = async (id) => {
@@ -128,7 +131,8 @@ export default function ConfigPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead><tr>{['Curso', 'Processo', 'Carga', 'Valor', 'Alunos', 'Estado', 'Acoes'].map((h) => <th key={h} style={thStyle}>{h}</th>)}</tr></thead>
             <tbody>
-              {cursos.map((c) => (
+              {loading && <tr><td colSpan={7} style={{ padding: 24, textAlign: 'center', color: 'var(--text-tertiary)' }}>A carregar...</td></tr>}
+              {!loading && cursos.map((c) => (
                 <tr key={c.id}>
                   <td style={{ ...tdStyle, fontWeight: 600 }}>{c.nome}</td>
                   <td style={{ ...tdStyle, fontSize: 12 }}>{c.processo || '--'}</td>
@@ -159,7 +163,8 @@ export default function ConfigPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead><tr>{['Nome', 'Email', 'Perfil', 'Estado', 'Acoes'].map((h) => <th key={h} style={thStyle}>{h}</th>)}</tr></thead>
             <tbody>
-              {users.map((u) => (
+              {loading && <tr><td colSpan={5} style={{ padding: 24, textAlign: 'center', color: 'var(--text-tertiary)' }}>A carregar...</td></tr>}
+              {!loading && users.map((u) => (
                 <tr key={u.id}>
                   <td style={{ ...tdStyle, fontWeight: 600 }}>{u.nome}</td>
                   <td style={tdStyle}>{u.email}</td>

@@ -25,9 +25,10 @@ export default function AgendaPage({ actionTrigger }) {
   const [editId, setEditId] = useState(null);
   const [filtros, setFiltros] = useState({ PRATICA: true, TEORICA: true, VISITA_TECNICA: true });
   const [view, setView] = useState('mes');
+  const [loading, setLoading] = useState(true);
 
   const carregar = useCallback(() => {
-    aulasApi.listar().then(setAulas).catch(() => {});
+    aulasApi.listar().then(setAulas).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   useEffect(() => { carregar(); }, [carregar]);
@@ -200,7 +201,7 @@ export default function AgendaPage({ actionTrigger }) {
         {/* Proximas */}
         <div style={{ padding: 16, flex: 1 }}>
           <h4 style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-tertiary)', marginBottom: 12 }}>Proximos</h4>
-          {proximas.length ? proximas.map((a) => {
+          {loading ? <div style={{ fontSize: 12, color: 'var(--text-tertiary)', padding: 12 }}>A carregar...</div> : proximas.length ? proximas.map((a) => {
             const tc = TIPO_CLS[a.tipo] || TIPO_CLS.PRATICA;
             return (
               <div key={a.id} onClick={() => abrirModal(a)} style={{ padding: '10px 12px', borderRadius: 8, marginBottom: 8, cursor: 'pointer', borderLeft: `3px solid ${tc.dot}`, background: 'var(--background)', transition: 'all 0.15s ease' }}>
