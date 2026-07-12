@@ -95,11 +95,13 @@ export default function ConfigPage() {
     } catch (err) { alert(err.message || 'Erro'); }
   };
 
-  const excluirCred = async (id) => {
-    if (!confirm('Remover credencial?')) return;
-    // Nao e possivel remover utilizadores via client-side, apenas desativar
-    await usersApi.atualizar(id, { ativo: false });
-    setUsers(await usersApi.listar());
+  const toggleAtivoCred = async (u) => {
+    const novoAtivo = !u.ativo;
+    if (!confirm(novoAtivo ? `Ativar o acesso de ${u.nome}?` : `Desativar o acesso de ${u.nome}? A pessoa deixa de conseguir entrar no sistema.`)) return;
+    try {
+      await usersApi.atualizar(u.id, { ativo: novoAtivo });
+      setUsers(await usersApi.listar());
+    } catch (err) { alert(err.message || 'Erro'); }
   };
 
   const fmtValor = (v) => `EUR ${Number(v).toLocaleString('pt-PT', { minimumFractionDigits: 2 })}`;
@@ -170,11 +172,17 @@ export default function ConfigPage() {
                   <td style={tdStyle}>{u.email}</td>
                   <td style={tdStyle}>{perfilLabel[u.perfil] || u.perfil}</td>
                   <td style={tdStyle}>
-                    <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: u.ativo ? '#E6F9F3' : '#FFE6E9', color: u.ativo ? '#00A86B' : '#E2445C' }}>{u.ativo ? 'Ativo' : 'Inativo'}</span>
+                    <select
+                      value={u.ativo ? 'ATIVO' : 'INATIVO'}
+                      onChange={() => toggleAtivoCred(u)}
+                      style={{ padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer', border: 'none', background: u.ativo ? '#E6F9F3' : '#FFE6E9', color: u.ativo ? '#00A86B' : '#E2445C' }}
+                    >
+                      <option value="ATIVO">Ativo</option>
+                      <option value="INATIVO">Inativo</option>
+                    </select>
                   </td>
                   <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
                     <button onClick={() => abrirCred(u)} style={{ padding: '2px 8px', background: 'transparent', border: 'none', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', color: 'var(--text-secondary)' }}>Editar</button>
-                    <button onClick={() => excluirCred(u.id)} style={{ padding: '2px 8px', background: 'transparent', border: 'none', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', color: 'var(--danger)' }}>x</button>
                   </td>
                 </tr>
               ))}
