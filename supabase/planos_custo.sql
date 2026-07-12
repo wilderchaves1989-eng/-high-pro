@@ -13,8 +13,12 @@ CREATE TABLE IF NOT EXISTS planos_custo (
   total_pecas INTEGER NOT NULL DEFAULT 0,
   total_custo NUMERIC(10,2) NOT NULL DEFAULT 0,
   media_hora NUMERIC(10,2) NOT NULL DEFAULT 0,
+  params JSONB NOT NULL DEFAULT '{}',
   criado_em TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Seguro re-executar em instalacoes que ja tinham a tabela sem esta coluna
+ALTER TABLE planos_custo ADD COLUMN IF NOT EXISTS params JSONB NOT NULL DEFAULT '{}';
 
 CREATE INDEX IF NOT EXISTS idx_planos_custo_criado ON planos_custo(criado_em DESC);
 

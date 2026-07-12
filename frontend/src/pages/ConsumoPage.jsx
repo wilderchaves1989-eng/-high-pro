@@ -116,8 +116,13 @@ export default function ConsumoPage() {
         alunoId: alunoId || null,
         alunoNome: alunoSel?.nome || null,
         nomePlano,
-        linhas: resultadosPlano.map((l) => ({ descricao: l.descricao, proc: l.proc, posicao: l.posicao, horas: l.horas, pecas: l.res.pecas, total: l.res.total, porHora: l.res.porHora })),
+        linhas: resultadosPlano.map((l) => ({
+          descricao: l.descricao, proc: l.proc, posicao: l.posicao, horas: l.horas,
+          pecas: l.res.pecas, total: l.res.total, porHora: l.res.porHora,
+          arcoMin: l.res.arcoMin, materialKg: l.res.materialKg, metalAdicaoKg: l.res.metalAdicaoKg, gasM3: l.res.gasM3,
+        })),
         totais,
+        params,
       });
       alert('Plano guardado. Veja na aba Planos.');
     } catch (err) {
@@ -258,7 +263,7 @@ export default function ConsumoPage() {
                   Guardar plano
                 </button>
                 <button
-                  onClick={() => gerarRelatorio({ empresa, nomePlano, alunoNome: alunoSel?.nome, resultadosPlano, totais })}
+                  onClick={() => gerarRelatorio({ empresa, nomePlano, alunoNome: alunoSel?.nome, resultadosPlano, totais, params })}
                   disabled={linhas.length === 0}
                   style={{ padding: '8px 16px', background: linhas.length ? 'var(--primary)' : 'var(--border)', color: '#fff', border: 'none', borderRadius: 4, fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: linhas.length ? 'pointer' : 'not-allowed' }}
                 >
@@ -329,10 +334,12 @@ function escapeHtml(str) {
 // ============================================================
 // Relatorio PDF: plano de custo com multiplas linhas
 // ============================================================
-export function gerarRelatorio({ empresa, nomePlano, alunoNome, resultadosPlano, totais }) {
+export function gerarRelatorio({ empresa, nomePlano, alunoNome, resultadosPlano, totais, params }) {
   const num = `PLANO ${new Date().getFullYear()}/${uid().slice(-4).toUpperCase()}`;
   const hoje = new Date().toLocaleDateString('pt-PT');
   const logoUrl = `${window.location.origin}/images/logo-highpro.svg`;
+  const p = params || PARAMETROS_PADRAO;
+  const fmtN = (v) => (v == null ? '--' : v);
 
   const linhas = resultadosPlano.map((l) => `
     <tr>
@@ -343,6 +350,29 @@ export function gerarRelatorio({ empresa, nomePlano, alunoNome, resultadosPlano,
       <td class="c">${l.res.pecas}</td>
       <td class="r">${fmtEUR(l.res.total)}</td>
     </tr>`).join('');
+
+  const consumoLinhas = resultadosPlano.map((l) => `
+    <tr>
+      <td>${escapeHtml(l.descricao || '--')}</td>
+      <td class="c">${PROC_LABEL[l.proc]}</td>
+      <td class="c">${fmtN(l.res.arcoMin)} min</td>
+      <td class="c">${fmtN(l.res.materialKg)} kg</td>
+      <td class="c">${fmtN(l.res.metalAdicaoKg)} kg</td>
+      <td class="c">${l.proc === 'eletrodo' ? '--' : `${fmtN(l.res.gasM3)} m3`}</td>
+    </tr>`).join('');
+
+  const procsUsados = [...new Set(resultadosPlano.map((l) => l.proc))];
+  const materiaisHtml = procsUsados.map((proc) => {
+    const paramsProc = p[proc] || PARAMETROS_PADRAO[proc];
+    const linhasParam = CAMPOS[proc].map(([campo, nome]) => `
+      <tr><td>${escapeHtml(nome)}</td><td class="r">${paramsProc[campo]}</td></tr>`).join('');
+    return `
+      <div style="font-weight:700; font-size:13px; margin:14px 0 6px; color:#0073EA;">${PROC_LABEL[proc]}</div>
+      <table style="margin-bottom:8px;">
+        <thead><tr><th>Parametro</th><th class="r">Valor</th></tr></thead>
+        <tbody>${linhasParam}</tbody>
+      </table>`;
+  }).join('');
 
   const html = `<!DOCTYPE html><html lang="pt-PT"><head><meta charset="UTF-8">
   <title>${escapeHtml(num)}</title>
@@ -395,12 +425,21 @@ export function gerarRelatorio({ empresa, nomePlano, alunoNome, resultadosPlano,
       <tbody>${linhas}</tbody>
     </table>
 
+    <div style="font-weight:700; font-size:15px; margin:0 0 10px; color:#323338;">Consumo Previsto</div>
+    <table>
+      <thead><tr><th>Descricao</th><th class="c">Processo</th><th class="c">Arco</th><th class="c">Material</th><th class="c">Adicao</th><th class="c">Gas</th></tr></thead>
+      <tbody>${consumoLinhas}</tbody>
+    </table>
+
     <div class="totais">
       <div class="row"><span>Total de horas</span><span>${totais.totalHoras}h</span></div>
       <div class="row"><span>Total de pecas</span><span>${totais.totalPecas}</span></div>
       <div class="row grand"><span>Custo total</span><span>${fmtEUR(totais.totalCusto)}</span></div>
       <div class="row" style="color:#9699A6; font-size:12px;"><span>Media por hora</span><span>${fmtEUR(totais.mediaHora)}</span></div>
     </div>
+
+    <div style="font-weight:700; font-size:15px; margin:20px 0 4px; color:#323338;">Materiais e Precos Utilizados</div>
+    ${materiaisHtml}
 
     <div class="foot">Relatorio gerado por ${escapeHtml(empresa)} em ${hoje}. Valores estimados com base nos parametros de material e precos configurados.</div>
 

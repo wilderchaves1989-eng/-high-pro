@@ -32,13 +32,17 @@ export default function PlanosPage() {
 
   const exportar = (p) => {
     const linhas = Array.isArray(p.linhas) ? p.linhas : [];
-    const resultadosPlano = linhas.map((l) => ({ descricao: l.descricao, proc: l.proc, posicao: l.posicao, horas: l.horas, res: { pecas: l.pecas, total: l.total } }));
+    const resultadosPlano = linhas.map((l) => ({
+      descricao: l.descricao, proc: l.proc, posicao: l.posicao, horas: l.horas,
+      res: { pecas: l.pecas, total: l.total, arcoMin: l.arcoMin, materialKg: l.materialKg, metalAdicaoKg: l.metalAdicaoKg, gasM3: l.gasM3 },
+    }));
     gerarRelatorio({
       empresa,
       nomePlano: p.nome_plano,
       alunoNome: p.aluno_nome,
       resultadosPlano,
       totais: { totalHoras: p.total_horas, totalPecas: p.total_pecas, totalCusto: p.total_custo, mediaHora: p.media_hora },
+      params: p.params,
     });
   };
 

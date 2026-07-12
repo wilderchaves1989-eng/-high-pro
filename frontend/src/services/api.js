@@ -349,6 +349,7 @@ export const planosCusto = {
       total_pecas: parseInt(dados.totais?.totalPecas) || 0,
       total_custo: parseFloat(dados.totais?.totalCusto) || 0,
       media_hora: parseFloat(dados.totais?.mediaHora) || 0,
+      params: dados.params || {},
     }]).select().single();
     if (error) throw error;
     return data;

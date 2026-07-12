@@ -74,8 +74,10 @@ create table if not exists planos_custo (
   total_pecas integer not null default 0,
   total_custo numeric(10,2) not null default 0,
   media_hora numeric(10,2) not null default 0,
+  params jsonb not null default '{}',
   criado_em timestamptz not null default now()
 );
+alter table planos_custo add column if not exists params jsonb not null default '{}';
 create index if not exists idx_planos_custo_criado on planos_custo(criado_em desc);
 alter table planos_custo enable row level security;
 drop policy if exists "Authenticated read planos_custo" on planos_custo;
