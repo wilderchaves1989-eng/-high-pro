@@ -11,6 +11,7 @@ import VisitasPage from '../pages/VisitasPage';
 import EstudoPage from '../pages/EstudoPage';
 import ConsumoPage from '../pages/ConsumoPage';
 import PropostasPage from '../pages/PropostasPage';
+import PlanosPage from '../pages/PlanosPage';
 
 const PAGES = {
   dashboard: { title: 'Dashboard', component: Dashboard, action: '+ Novo Aluno' },
@@ -20,6 +21,7 @@ const PAGES = {
   visitas: { title: 'Visitas', component: VisitasPage, action: null },
   financeiro: { title: 'Financeiro', component: FinanceiroPage, action: null },
   consumo: { title: 'Projecao de Consumo', component: ConsumoPage, action: null },
+  planos: { title: 'Planos de Custo', component: PlanosPage, action: null },
   calculadora: { title: 'Calculadora de Pacotes', component: CalculadoraPage, action: null },
   propostas: { title: 'Propostas Guardadas', component: PropostasPage, action: null },
   configuracoes: { title: 'Configuracoes', component: ConfigPage, action: null },

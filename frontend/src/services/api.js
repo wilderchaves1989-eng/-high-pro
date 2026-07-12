@@ -331,6 +331,35 @@ export const propostas = {
   },
 };
 
+// ── PLANOS DE CUSTO (Consumo) ───────────────────────────────
+export const planosCusto = {
+  async listar() {
+    const { data, error } = await supabase.from('planos_custo').select('*').order('criado_em', { ascending: false });
+    if (error) throw error;
+    return data;
+  },
+
+  async criar(dados) {
+    const { data, error } = await supabase.from('planos_custo').insert([{
+      aluno_id: dados.alunoId ? parseInt(dados.alunoId) : null,
+      aluno_nome: dados.alunoNome || null,
+      nome_plano: dados.nomePlano || null,
+      linhas: dados.linhas || [],
+      total_horas: parseFloat(dados.totais?.totalHoras) || 0,
+      total_pecas: parseInt(dados.totais?.totalPecas) || 0,
+      total_custo: parseFloat(dados.totais?.totalCusto) || 0,
+      media_hora: parseFloat(dados.totais?.mediaHora) || 0,
+    }]).select().single();
+    if (error) throw error;
+    return data;
+  },
+
+  async excluir(id) {
+    const { error } = await supabase.from('planos_custo').delete().eq('id', id);
+    if (error) throw error;
+  },
+};
+
 // ── CONFIG ──────────────────────────────────────────────────
 export const config = {
   async carregar() {

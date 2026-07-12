@@ -1,12 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { PARAMETROS_PADRAO, POSICOES, consumoSessao, pecasSugeridas } from '../services/motorConsumo';
-import { alunos as alunosApi, config as configApi } from '../services/api';
+import { alunos as alunosApi, config as configApi, planosCusto as planosCustoApi } from '../services/api';
 
 const fmtEUR = (v) => `EUR ${Number(v || 0).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const r2 = (x) => Math.round(x * 100) / 100;
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-const PROC_LABEL = { mig: 'MIG/MAG', tig: 'TIG', eletrodo: 'Eletrodo' };
+export const PROC_LABEL = { mig: 'MIG/MAG', tig: 'TIG', eletrodo: 'Eletrodo' };
 
 // Mapeia o processo do curso para o processo do motor
 function procDoCurso(processo = '') {
@@ -108,6 +108,24 @@ export default function ConsumoPage() {
     const totalPecas = resultadosPlano.reduce((s, l) => s + l.res.pecas, 0);
     return { totalHoras: r2(totalHoras), totalCusto: r2(totalCusto), totalPecas, mediaHora: totalHoras > 0 ? r2(totalCusto / totalHoras) : 0 };
   }, [resultadosPlano]);
+
+  const guardarPlano = async () => {
+    if (linhas.length === 0) return;
+    try {
+      await planosCustoApi.criar({
+        alunoId: alunoId || null,
+        alunoNome: alunoSel?.nome || null,
+        nomePlano,
+        linhas: resultadosPlano.map((l) => ({ descricao: l.descricao, proc: l.proc, posicao: l.posicao, horas: l.horas, pecas: l.res.pecas, total: l.res.total, porHora: l.res.porHora })),
+        totais,
+      });
+      alert('Plano guardado. Veja na aba Planos.');
+    } catch (err) {
+      alert(/planos_custo|schema cache|does not exist|relation/i.test(err.message || '')
+        ? 'Falta criar a tabela: rode supabase/planos_custo.sql no Supabase.'
+        : (err.message || 'Erro ao guardar'));
+    }
+  };
 
   const matLabel = proc === 'tig' ? 'Tubo (kg)' : 'Aco (kg)';
   const adicaoLabel = proc === 'mig' ? 'Arame (kg)' : proc === 'tig' ? 'Vareta (kg)' : 'Eletrodo (kg)';
@@ -231,13 +249,22 @@ export default function ConsumoPage() {
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
             <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <input value={nomePlano} onChange={(e) => setNomePlano(e.target.value)} placeholder="Nome do plano (opcional)" style={{ ...inputStyle, maxWidth: 260, padding: '6px 10px' }} />
-              <button
-                onClick={() => gerarRelatorio({ empresa, nomePlano, alunoNome: alunoSel?.nome, resultadosPlano, totais })}
-                disabled={linhas.length === 0}
-                style={{ padding: '8px 16px', background: linhas.length ? 'var(--primary)' : 'var(--border)', color: '#fff', border: 'none', borderRadius: 4, fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: linhas.length ? 'pointer' : 'not-allowed' }}
-              >
-                Gerar Relatorio (PDF)
-              </button>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={guardarPlano}
+                  disabled={linhas.length === 0}
+                  style={{ padding: '8px 16px', background: linhas.length ? 'var(--success)' : 'var(--border)', color: '#fff', border: 'none', borderRadius: 4, fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: linhas.length ? 'pointer' : 'not-allowed' }}
+                >
+                  Guardar plano
+                </button>
+                <button
+                  onClick={() => gerarRelatorio({ empresa, nomePlano, alunoNome: alunoSel?.nome, resultadosPlano, totais })}
+                  disabled={linhas.length === 0}
+                  style={{ padding: '8px 16px', background: linhas.length ? 'var(--primary)' : 'var(--border)', color: '#fff', border: 'none', borderRadius: 4, fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: linhas.length ? 'pointer' : 'not-allowed' }}
+                >
+                  Gerar Relatorio (PDF)
+                </button>
+              </div>
             </div>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -302,7 +329,7 @@ function escapeHtml(str) {
 // ============================================================
 // Relatorio PDF: plano de custo com multiplas linhas
 // ============================================================
-function gerarRelatorio({ empresa, nomePlano, alunoNome, resultadosPlano, totais }) {
+export function gerarRelatorio({ empresa, nomePlano, alunoNome, resultadosPlano, totais }) {
   const num = `PLANO ${new Date().getFullYear()}/${uid().slice(-4).toUpperCase()}`;
   const hoje = new Date().toLocaleDateString('pt-PT');
   const logoUrl = `${window.location.origin}/images/logo-highpro.svg`;

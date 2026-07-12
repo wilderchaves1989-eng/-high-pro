@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { key: 'visitas', label: 'Visitas' },
   { key: 'financeiro', label: 'Financeiro' },
   { key: 'consumo', label: 'Consumo' },
+  { key: 'planos', label: 'Planos' },
   { key: 'calculadora', label: 'Calculadora' },
   { key: 'propostas', label: 'Propostas' },
   { key: 'configuracoes', label: 'Configuracoes', gestorOnly: true },
