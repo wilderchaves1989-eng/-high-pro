@@ -1,9 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { PARAMETROS_PADRAO, POSICOES, consumoSessao, pecasSugeridas } from '../services/motorConsumo';
-import { alunos as alunosApi } from '../services/api';
+import { alunos as alunosApi, config as configApi } from '../services/api';
 
 const fmtEUR = (v) => `EUR ${Number(v || 0).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const clone = (o) => JSON.parse(JSON.stringify(o));
+const r2 = (x) => Math.round(x * 100) / 100;
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const PROC_LABEL = { mig: 'MIG/MAG', tig: 'TIG', eletrodo: 'Eletrodo' };
 
 // Mapeia o processo do curso para o processo do motor
 function procDoCurso(processo = '') {
@@ -11,6 +14,17 @@ function procDoCurso(processo = '') {
   if (p.includes('GTAW') || p.includes('TIG')) return 'tig';
   if (p.includes('SMAW') || p.includes('ELETRODO') || p.includes('REVESTIDO')) return 'eletrodo';
   return 'mig';
+}
+
+// Calcula o consumo de uma linha do plano a partir dos campos "crus"
+// (sempre recalculado com os params atuais — assim editar material/precos
+// atualiza tambem as linhas ja adicionadas ao plano)
+function calcularLinha(l, params) {
+  const posMult = (POSICOES.find((p) => p.key === l.posicao) || POSICOES[0]).mult;
+  const fatorArco = (params.fatorArcoPorNivel[l.nivel] ?? 0.25) * posMult;
+  const pecasAuto = pecasSugeridas(l.proc, params, l.horas);
+  const pecas = l.pecasManual !== '' && l.pecasManual != null ? Math.max(0, parseInt(l.pecasManual) || 0) : pecasAuto;
+  return consumoSessao(l.proc, params, l.horas, fatorArco, pecas, l.reuso ? l.usos : 1);
 }
 
 // Campos editaveis de material/precos por processo
@@ -35,6 +49,7 @@ const CAMPOS = {
 };
 
 export default function ConsumoPage() {
+  // Construtor da linha atual
   const [proc, setProc] = useState('mig');
   const [horas, setHoras] = useState(5);
   const [nivel, setNivel] = useState(0);
@@ -42,12 +57,19 @@ export default function ConsumoPage() {
   const [pecasManual, setPecasManual] = useState('');
   const [usos, setUsos] = useState(4);
   const [reuso, setReuso] = useState(false);
+  const [descricaoLinha, setDescricaoLinha] = useState('');
   const [params, setParams] = useState(clone(PARAMETROS_PADRAO));
   const [showParams, setShowParams] = useState(false);
   const [alunos, setAlunos] = useState([]);
   const [alunoId, setAlunoId] = useState('');
+  const [empresa, setEmpresa] = useState('High Pro');
+
+  // Plano de custo (varias linhas, cada uma com seu processo e posicao)
+  const [nomePlano, setNomePlano] = useState('');
+  const [linhas, setLinhas] = useState([]);
 
   useEffect(() => { alunosApi.listar().then(setAlunos).catch(() => {}); }, []);
+  useEffect(() => { configApi.carregar().then((c) => c?.sistemaNome && setEmpresa(c.sistemaNome)).catch(() => {}); }, []);
 
   const setParam = (campo, valor) => setParams((prev) => {
     const novo = clone(prev);
@@ -67,15 +89,25 @@ export default function ConsumoPage() {
 
   const alunoSel = alunos.find((x) => String(x.id) === String(alunoId));
 
-  const posMult = (POSICOES.find((p) => p.key === posicao) || POSICOES[0]).mult;
-  const fatorArco = (params.fatorArcoPorNivel[nivel] || 0.25) * posMult;
-  const pecasAuto = pecasSugeridas(proc, params, parseFloat(horas) || 0);
-  const pecas = pecasManual !== '' ? Math.max(0, parseInt(pecasManual) || 0) : pecasAuto;
+  const linhaAtual = { proc, horas: parseFloat(horas) || 0, nivel, posicao, pecasManual, reuso, usos };
+  const resAtual = useMemo(() => calcularLinha(linhaAtual, params), [proc, horas, nivel, posicao, pecasManual, reuso, usos, params]);
 
-  const res = useMemo(
-    () => consumoSessao(proc, params, parseFloat(horas) || 0, fatorArco, pecas, reuso ? usos : 1),
-    [proc, params, horas, fatorArco, pecas, usos, reuso],
-  );
+  const adicionarLinha = () => {
+    if (linhaAtual.horas <= 0) { alert('Informe o tempo de aula.'); return; }
+    setLinhas((prev) => [...prev, { id: uid(), ...linhaAtual, descricao: descricaoLinha }]);
+    setDescricaoLinha('');
+  };
+
+  const removerLinha = (id) => setLinhas((prev) => prev.filter((l) => l.id !== id));
+
+  const resultadosPlano = useMemo(() => linhas.map((l) => ({ ...l, res: calcularLinha(l, params) })), [linhas, params]);
+
+  const totais = useMemo(() => {
+    const totalHoras = resultadosPlano.reduce((s, l) => s + l.horas, 0);
+    const totalCusto = resultadosPlano.reduce((s, l) => s + l.res.total, 0);
+    const totalPecas = resultadosPlano.reduce((s, l) => s + l.res.pecas, 0);
+    return { totalHoras: r2(totalHoras), totalCusto: r2(totalCusto), totalPecas, mediaHora: totalHoras > 0 ? r2(totalCusto / totalHoras) : 0 };
+  }, [resultadosPlano]);
 
   const matLabel = proc === 'tig' ? 'Tubo (kg)' : 'Aco (kg)';
   const adicaoLabel = proc === 'mig' ? 'Arame (kg)' : proc === 'tig' ? 'Vareta (kg)' : 'Eletrodo (kg)';
@@ -83,14 +115,16 @@ export default function ConsumoPage() {
 
   const inputStyle = { width: '100%', padding: '8px 12px', border: '1px solid var(--border)', borderRadius: 4, fontFamily: 'inherit', fontSize: 14, outline: 'none' };
   const label = { display: 'block', fontSize: 12, marginBottom: 4, color: 'var(--text-secondary)' };
+  const thStyle = { textAlign: 'left', padding: '10px 12px', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.3, color: 'var(--text-tertiary)', background: 'var(--background)', borderBottom: '1px solid var(--border)' };
+  const tdStyle = { padding: '8px 12px', borderBottom: '1px solid var(--border)', fontSize: 13 };
 
   return (
     <div style={{ padding: 24, overflowY: 'auto', height: '100%' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 1fr) minmax(280px, 1.2fr)', gap: 16, alignItems: 'start' }}>
-        {/* Entradas */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 1fr) minmax(340px, 1.3fr)', gap: 16, alignItems: 'start' }}>
+        {/* Construtor de linha */}
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: 20 }}>
-          <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 4 }}>Projecao de Consumo</div>
-          <div style={{ fontSize: 13, color: 'var(--text-tertiary)', marginBottom: 16 }}>Estime material e custo por tempo de aula.</div>
+          <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 4 }}>Nova Linha do Plano</div>
+          <div style={{ fontSize: 13, color: 'var(--text-tertiary)', marginBottom: 16 }}>Configure processo, posicao e horas — depois adicione ao plano. Repita para combinar quantos processos/posicoes quiser.</div>
 
           {/* Aluno (preenche pelo curso) */}
           <div style={{ marginBottom: 14 }}>
@@ -116,6 +150,11 @@ export default function ConsumoPage() {
             </div>
           </div>
 
+          <div style={{ marginBottom: 14 }}>
+            <label style={label}>Descricao da linha (opcional)</label>
+            <input value={descricaoLinha} onChange={(e) => setDescricaoLinha(e.target.value)} placeholder="Ex: Turma manha - filete FW" style={inputStyle} />
+          </div>
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div><label style={label}>Tempo de aula (horas)</label><input type="number" min="0" step="0.5" value={horas} onChange={(e) => setHoras(e.target.value)} style={inputStyle} /></div>
             <div><label style={label}>Nivel do aluno (0-4)</label>
@@ -128,7 +167,7 @@ export default function ConsumoPage() {
                 {POSICOES.map((p) => <option key={p.key} value={p.key}>{p.nome}</option>)}
               </select>
             </div>
-            <div><label style={label}>Nº de pecas</label><input type="number" min="0" value={pecasManual} onChange={(e) => setPecasManual(e.target.value)} placeholder={`auto: ${pecasAuto}`} style={inputStyle} /></div>
+            <div><label style={label}>Nº de pecas</label><input type="number" min="0" value={pecasManual} onChange={(e) => setPecasManual(e.target.value)} placeholder={`auto: ${pecasSugeridas(proc, params, parseFloat(horas) || 0)}`} style={inputStyle} /></div>
           </div>
 
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, fontSize: 13, cursor: 'pointer' }}>
@@ -157,31 +196,81 @@ export default function ConsumoPage() {
               ))}
             </div>
           )}
+
+          {/* Previa da linha atual */}
+          <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+            <div style={{ flex: 1, background: 'var(--background)', borderRadius: 6, padding: '10px 14px' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>Custo desta linha</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--primary)' }}>{fmtEUR(resAtual.total)}</div>
+            </div>
+            <div style={{ flex: 1, background: 'var(--background)', borderRadius: 6, padding: '10px 14px' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>Por hora</div>
+              <div style={{ fontSize: 18, fontWeight: 700 }}>{fmtEUR(resAtual.porHora)}</div>
+            </div>
+          </div>
+          <button onClick={adicionarLinha} style={{ width: '100%', marginTop: 10, padding: 11, background: 'var(--success)', color: '#fff', border: 'none', borderRadius: 4, fontSize: 14, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>+ Adicionar ao plano</button>
         </div>
 
-        {/* Resultado */}
+        {/* Plano de custo */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            <div style={{ background: 'var(--primary)', borderRadius: 8, padding: '18px 20px', color: '#fff' }}>
-              <div style={{ fontSize: 13, opacity: 0.9 }}>Custo total da aula</div>
-              <div style={{ fontSize: 30, fontWeight: 800 }}>{fmtEUR(res.total)}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+            <div style={{ background: 'var(--primary)', borderRadius: 8, padding: '16px 18px', color: '#fff' }}>
+              <div style={{ fontSize: 12, opacity: 0.9 }}>Total do plano</div>
+              <div style={{ fontSize: 24, fontWeight: 800 }}>{fmtEUR(totais.totalCusto)}</div>
             </div>
-            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '18px 20px' }}>
-              <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Custo por hora</div>
-              <div style={{ fontSize: 30, fontWeight: 800, color: 'var(--primary)' }}>{fmtEUR(res.porHora)}</div>
+            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '16px 18px' }}>
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Total de horas</div>
+              <div style={{ fontSize: 24, fontWeight: 800 }}>{totais.totalHoras}h</div>
+            </div>
+            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '16px 18px' }}>
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Media EUR/h</div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--primary)' }}>{fmtEUR(totais.mediaHora)}</div>
             </div>
           </div>
 
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-            <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', fontWeight: 500 }}>Consumo previsto</div>
+            <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <input value={nomePlano} onChange={(e) => setNomePlano(e.target.value)} placeholder="Nome do plano (opcional)" style={{ ...inputStyle, maxWidth: 260, padding: '6px 10px' }} />
+              <button
+                onClick={() => gerarRelatorio({ empresa, nomePlano, alunoNome: alunoSel?.nome, resultadosPlano, totais })}
+                disabled={linhas.length === 0}
+                style={{ padding: '8px 16px', background: linhas.length ? 'var(--primary)' : 'var(--border)', color: '#fff', border: 'none', borderRadius: 4, fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: linhas.length ? 'pointer' : 'not-allowed' }}
+              >
+                Gerar Relatorio (PDF)
+              </button>
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead><tr>{['Descricao', 'Processo', 'Posicao', 'Horas', 'Pecas', 'Total', ''].map((h) => <th key={h} style={thStyle}>{h}</th>)}</tr></thead>
+                <tbody>
+                  {resultadosPlano.length ? resultadosPlano.map((l) => (
+                    <tr key={l.id}>
+                      <td style={tdStyle}>{l.descricao || '--'}</td>
+                      <td style={tdStyle}>{PROC_LABEL[l.proc]}</td>
+                      <td style={tdStyle}>{l.posicao}</td>
+                      <td style={tdStyle}>{l.horas}h</td>
+                      <td style={tdStyle}>{l.res.pecas}</td>
+                      <td style={{ ...tdStyle, fontWeight: 600 }}>{fmtEUR(l.res.total)}</td>
+                      <td style={{ ...tdStyle, textAlign: 'right' }}><button onClick={() => removerLinha(l.id)} style={{ padding: '3px 8px', background: 'transparent', border: 'none', color: 'var(--danger)', fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>x</button></td>
+                    </tr>
+                  )) : (
+                    <tr><td colSpan={7} style={{ padding: 20, textAlign: 'center', color: 'var(--text-tertiary)' }}>Nenhuma linha no plano. Configure ao lado e clique em "+ Adicionar ao plano".</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+            <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', fontWeight: 500 }}>Consumo previsto (linha atual)</div>
             <div style={{ padding: '8px 20px' }}>
               {[
-                ['Tempo de arco', `${res.arcoMin} min`],
-                ['Nº de pecas praticadas', `${res.pecas}`],
-                ...(reuso && usos > 1 ? [['Pecas compradas (reaproveita ' + usos + 'x)', `${res.pecasNovas}`]] : []),
-                [matLabel, `${res.materialKg} kg`],
-                [adicaoLabel, `${res.metalAdicaoKg} kg`],
-                ...(proc !== 'eletrodo' ? [['Gas', `${res.gasM3} m3`]] : []),
+                ['Tempo de arco', `${resAtual.arcoMin} min`],
+                ['Nº de pecas praticadas', `${resAtual.pecas}`],
+                ...(reuso && usos > 1 ? [['Pecas compradas (reaproveita ' + usos + 'x)', `${resAtual.pecasNovas}`]] : []),
+                [matLabel, `${resAtual.materialKg} kg`],
+                [adicaoLabel, `${resAtual.metalAdicaoKg} kg`],
+                ...(proc !== 'eletrodo' ? [['Gas', `${resAtual.gasM3} m3`]] : []),
               ].map(([k, v]) => (
                 <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)', fontSize: 14 }}>
                   <span style={{ color: 'var(--text-secondary)' }}>{k}</span>
@@ -190,11 +279,11 @@ export default function ConsumoPage() {
               ))}
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)', fontSize: 14 }}>
                 <span style={{ color: 'var(--text-secondary)' }}>Custo material (pecas)</span>
-                <span style={{ fontWeight: 600 }}>{fmtEUR(res.custoPecas)}</span>
+                <span style={{ fontWeight: 600 }}>{fmtEUR(resAtual.custoPecas)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', fontSize: 14 }}>
                 <span style={{ color: 'var(--text-secondary)' }}>{custoArcoLabel}</span>
-                <span style={{ fontWeight: 600 }}>{fmtEUR(res.custoArco)}</span>
+                <span style={{ fontWeight: 600 }}>{fmtEUR(resAtual.custoArco)}</span>
               </div>
             </div>
           </div>
@@ -202,4 +291,100 @@ export default function ConsumoPage() {
       </div>
     </div>
   );
+}
+
+function escapeHtml(str) {
+  return String(str == null ? '' : str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// ============================================================
+// Relatorio PDF: plano de custo com multiplas linhas
+// ============================================================
+function gerarRelatorio({ empresa, nomePlano, alunoNome, resultadosPlano, totais }) {
+  const num = `PLANO ${new Date().getFullYear()}/${uid().slice(-4).toUpperCase()}`;
+  const hoje = new Date().toLocaleDateString('pt-PT');
+  const logoUrl = `${window.location.origin}/images/logo-highpro.svg`;
+
+  const linhas = resultadosPlano.map((l) => `
+    <tr>
+      <td>${escapeHtml(l.descricao || '--')}</td>
+      <td class="c">${PROC_LABEL[l.proc]}</td>
+      <td class="c">${escapeHtml(l.posicao)}</td>
+      <td class="c">${l.horas}h</td>
+      <td class="c">${l.res.pecas}</td>
+      <td class="r">${fmtEUR(l.res.total)}</td>
+    </tr>`).join('');
+
+  const html = `<!DOCTYPE html><html lang="pt-PT"><head><meta charset="UTF-8">
+  <title>${escapeHtml(num)}</title>
+  <style>
+    @font-face { font-family:'Clear Sans'; font-weight:700; src:url('${window.location.origin}/fonts/ClearSans-Bold.woff') format('woff'); }
+    @font-face { font-family:'Clear Sans'; font-weight:400; src:url('${window.location.origin}/fonts/ClearSans-Regular.woff') format('woff'); }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; color:#323338; padding:40px; font-size:14px; }
+    .head { display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #0073EA; padding-bottom:20px; margin-bottom:24px; }
+    .head img { height:110px; }
+    .empresa { font-family:'Clear Sans','Segoe UI',Arial,sans-serif; font-size:38px; font-weight:700; color:#111111; letter-spacing:-0.5px; line-height:1; }
+    .empresa small { display:block; font-family:'Clear Sans','Segoe UI',Arial,sans-serif; font-weight:400; color:#676879; font-size:16px; letter-spacing:1px; text-transform:uppercase; margin-top:6px; }
+    .doc { text-align:right; }
+    .doc h1 { font-size:20px; }
+    .doc p { color:#676879; font-size:13px; margin-top:4px; }
+    .box { background:#F5F7FC; border-radius:8px; padding:16px 20px; margin-bottom:24px; }
+    .box .lbl { font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:#9699A6; }
+    .box .val { font-size:18px; font-weight:700; color:#0073EA; }
+    table { width:100%; border-collapse:collapse; margin-bottom:24px; }
+    th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.3px; color:#9699A6; border-bottom:2px solid #E6E9EF; padding:10px 8px; }
+    td { padding:10px 8px; border-bottom:1px solid #E6E9EF; }
+    .c { text-align:center; } .r { text-align:right; }
+    .totais { margin-left:auto; width:320px; }
+    .totais .row { display:flex; justify-content:space-between; padding:6px 0; }
+    .totais .grand { border-top:2px solid #0073EA; margin-top:6px; padding-top:10px; font-size:20px; font-weight:800; color:#0073EA; }
+    .foot { margin-top:40px; text-align:center; color:#9699A6; font-size:12px; border-top:1px solid #E6E9EF; padding-top:16px; }
+    @media print { body { padding:20px; } .noprint { display:none; } }
+  </style></head><body>
+    <div class="head">
+      <div style="display:flex; gap:14px; align-items:center;">
+        <img src="${logoUrl}" alt="" onerror="this.style.display='none'"/>
+        <div class="empresa">${escapeHtml(empresa)}<small>Escola de Solda</small></div>
+      </div>
+      <div class="doc"><h1>PLANO DE CUSTO</h1><p>${escapeHtml(num)}</p><p>Data: ${hoje}</p></div>
+    </div>
+
+    ${alunoNome ? `<div class="box">
+      <div class="lbl">Aluno</div>
+      <div class="val" style="color:#323338; font-size:16px;">${escapeHtml(alunoNome)}</div>
+    </div>` : ''}
+
+    <div class="box">
+      <div class="lbl">Plano</div>
+      <div class="val">${escapeHtml(nomePlano || 'Plano de Custo Personalizado')}</div>
+      <div style="color:#676879; font-size:13px; margin-top:6px;">${resultadosPlano.length} linha(s) · ${totais.totalHoras}h no total</div>
+    </div>
+
+    <table>
+      <thead><tr><th>Descricao</th><th class="c">Processo</th><th class="c">Posicao</th><th class="c">Horas</th><th class="c">Pecas</th><th class="r">Total</th></tr></thead>
+      <tbody>${linhas}</tbody>
+    </table>
+
+    <div class="totais">
+      <div class="row"><span>Total de horas</span><span>${totais.totalHoras}h</span></div>
+      <div class="row"><span>Total de pecas</span><span>${totais.totalPecas}</span></div>
+      <div class="row grand"><span>Custo total</span><span>${fmtEUR(totais.totalCusto)}</span></div>
+      <div class="row" style="color:#9699A6; font-size:12px;"><span>Media por hora</span><span>${fmtEUR(totais.mediaHora)}</span></div>
+    </div>
+
+    <div class="foot">Relatorio gerado por ${escapeHtml(empresa)} em ${hoje}. Valores estimados com base nos parametros de material e precos configurados.</div>
+
+    <div class="noprint" style="text-align:center; margin-top:30px;">
+      <button onclick="window.print()" style="padding:10px 24px; background:#0073EA; color:#fff; border:none; border-radius:6px; font-size:14px; cursor:pointer;">Imprimir / Guardar PDF</button>
+    </div>
+    <script>window.onload = function(){ setTimeout(function(){ window.print(); }, 400); };</script>
+  </body></html>`;
+
+  const w = window.open('', '_blank');
+  if (!w) { alert('Permita pop-ups para gerar o relatorio.'); return; }
+  w.document.write(html);
+  w.document.close();
 }
