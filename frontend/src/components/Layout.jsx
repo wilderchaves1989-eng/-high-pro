@@ -12,6 +12,7 @@ import EstudoPage from '../pages/EstudoPage';
 import ConsumoPage from '../pages/ConsumoPage';
 import PropostasPage from '../pages/PropostasPage';
 import PlanosPage from '../pages/PlanosPage';
+import ChatWidget from './ChatWidget';
 
 const PAGES = {
   dashboard: { title: 'Dashboard', component: Dashboard, action: '+ Novo Aluno' },
@@ -58,6 +59,7 @@ export default function Layout() {
           <PageComponent actionTrigger={actionTrigger} onNavigate={setActivePage} />
         </div>
       </div>
+      <ChatWidget />
     </div>
   );
 }

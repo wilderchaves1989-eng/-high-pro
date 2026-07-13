@@ -112,3 +112,32 @@ create policy "Authenticated all perfil_comportamental" on perfil_comportamental
 -- 7) MODULOS PERMITIDOS: controlo de acesso por credencial (esconde abas no menu)
 -- NULL = sem restricao (ve tudo, comportamento padrao). Array de chaves = ve so essas abas.
 alter table profiles add column if not exists modulos_permitidos jsonb;
+
+-- 8) MENSAGENS: chat entre colaboradores (canal geral + privadas)
+create table if not exists mensagens (
+  id serial primary key,
+  remetente_id uuid not null references profiles(id) on delete cascade,
+  destinatario_id uuid references profiles(id) on delete cascade,
+  texto text not null,
+  lida boolean not null default false,
+  criado_em timestamptz not null default now()
+);
+create index if not exists idx_mensagens_criado on mensagens(criado_em);
+create index if not exists idx_mensagens_privada on mensagens(remetente_id, destinatario_id);
+alter table mensagens enable row level security;
+drop policy if exists "Ver mensagens" on mensagens;
+create policy "Ver mensagens" on mensagens for select to authenticated
+  using (destinatario_id is null or remetente_id = auth.uid() or destinatario_id = auth.uid());
+drop policy if exists "Enviar mensagens" on mensagens;
+create policy "Enviar mensagens" on mensagens for insert to authenticated
+  with check (remetente_id = auth.uid());
+drop policy if exists "Marcar como lida" on mensagens;
+create policy "Marcar como lida" on mensagens for update to authenticated
+  using (destinatario_id = auth.uid())
+  with check (destinatario_id = auth.uid());
+do $$
+begin
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'mensagens') then
+    alter publication supabase_realtime add table mensagens;
+  end if;
+end $$;

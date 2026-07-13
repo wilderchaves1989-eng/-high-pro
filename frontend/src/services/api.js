@@ -407,6 +407,74 @@ export const perfilComportamental = {
   },
 };
 
+// ── MENSAGENS (chat entre colaboradores) ────────────────────
+export const mensagens = {
+  // Canal geral: todas as mensagens com destinatario_id nulo
+  async listarGeral(limite = 100) {
+    const { data, error } = await supabase
+      .from('mensagens')
+      .select('*, remetente:profiles!mensagens_remetente_id_fkey(id, nome)')
+      .is('destinatario_id', null)
+      .order('criado_em', { ascending: true })
+      .limit(limite);
+    if (error) throw error;
+    return data;
+  },
+
+  // Conversa privada entre o utilizador atual e outra pessoa
+  async listarPrivada(meuId, outroId, limite = 200) {
+    const { data, error } = await supabase
+      .from('mensagens')
+      .select('*, remetente:profiles!mensagens_remetente_id_fkey(id, nome)')
+      .or(`and(remetente_id.eq.${meuId},destinatario_id.eq.${outroId}),and(remetente_id.eq.${outroId},destinatario_id.eq.${meuId})`)
+      .order('criado_em', { ascending: true })
+      .limit(limite);
+    if (error) throw error;
+    return data;
+  },
+
+  async enviar({ remetenteId, destinatarioId, texto }) {
+    const { data, error } = await supabase.from('mensagens').insert([{
+      remetente_id: remetenteId,
+      destinatario_id: destinatarioId || null,
+      texto,
+    }]).select().single();
+    if (error) throw error;
+    return data;
+  },
+
+  // Todas as privadas que envolvem o utilizador (para montar a lista de conversas + nao lidas)
+  async listarMinhasPrivadas(meuId) {
+    const { data, error } = await supabase
+      .from('mensagens')
+      .select('*')
+      .not('destinatario_id', 'is', null)
+      .or(`remetente_id.eq.${meuId},destinatario_id.eq.${meuId}`)
+      .order('criado_em', { ascending: false });
+    if (error) throw error;
+    return data;
+  },
+
+  async marcarLidas(remetenteId, meuId) {
+    const { error } = await supabase.from('mensagens')
+      .update({ lida: true })
+      .eq('remetente_id', remetenteId)
+      .eq('destinatario_id', meuId)
+      .eq('lida', false);
+    if (error) throw error;
+  },
+
+  subscribe(callback) {
+    // Nome de canal unico por assinatura: reusar o mesmo nome faz o cliente do
+    // Supabase rejeitar um segundo .subscribe() (ex: remontagem do componente).
+    const channel = supabase
+      .channel(`mensagens-realtime-${Date.now()}-${Math.random().toString(36).slice(2)}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mensagens' }, (payload) => callback(payload.new))
+      .subscribe();
+    return () => supabase.removeChannel(channel);
+  },
+};
+
 // ── CONFIG ──────────────────────────────────────────────────
 export const config = {
   async carregar() {
