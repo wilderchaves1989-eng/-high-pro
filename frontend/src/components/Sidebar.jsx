@@ -36,6 +36,10 @@ export default function Sidebar({ activePage, onNavigate }) {
         <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-tertiary)', padding: '8px 8px 4px' }}>Principal</div>
         {NAV_ITEMS.map((item) => {
           if (item.gestorOnly && profile?.perfil !== 'GESTOR') return null;
+          // Restricao por credencial: se modulos_permitidos estiver definido (array),
+          // so mostra as abas nele. NULL/indefinido = sem restricao (ve tudo).
+          // "configuracoes" nunca e afetado por isto (fica so no gestorOnly acima).
+          if (item.key !== 'configuracoes' && Array.isArray(profile?.modulos_permitidos) && !profile.modulos_permitidos.includes(item.key)) return null;
           const isActive = activePage === item.key;
           return (
             <button

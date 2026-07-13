@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { cursos as cursosApi, users as usersApi, alunos as alunosApi, config as configApi } from '../services/api';
 import Modal from '../components/Modal';
 import { CalculadoraPacotes } from './CalculadoraPage';
+import { MODULOS } from '../services/modulos';
 
 const PROCESSOS = [
   'SMAW (111) - Eletrodo Revestido',
@@ -13,7 +14,7 @@ const PROCESSOS = [
 ];
 
 const initialCurso = { nome: '', processo: '', carga: '', valor: '', nivel: '', descricao: '', ativo: true };
-const initialCred = { nome: '', email: '', senha: '', perfil: 'ATENDIMENTO', ativo: true };
+const initialCred = { nome: '', email: '', senha: '', perfil: 'ATENDIMENTO', ativo: true, modulosPermitidos: null };
 
 export default function ConfigPage() {
   const [sistemaNome, setSistemaNome] = useState('High Pro');
@@ -75,7 +76,7 @@ export default function ConfigPage() {
   const abrirCred = (c) => {
     if (c) {
       setEditCredId(c.id);
-      setCredForm({ nome: c.nome, email: c.email, senha: '', perfil: c.perfil, ativo: c.ativo });
+      setCredForm({ nome: c.nome, email: c.email, senha: '', perfil: c.perfil, ativo: c.ativo, modulosPermitidos: Array.isArray(c.modulos_permitidos) ? c.modulos_permitidos : null });
     } else {
       setEditCredId(null);
       setCredForm(initialCred);
@@ -93,13 +94,21 @@ export default function ConfigPage() {
         if (emailMudou || credForm.senha) {
           await usersApi.atualizarLogin(editCredId, { email: emailMudou ? credForm.email : undefined, senha: credForm.senha || undefined });
         }
-        await usersApi.atualizar(editCredId, { nome: credForm.nome, perfil: credForm.perfil });
+        await usersApi.atualizar(editCredId, { nome: credForm.nome, perfil: credForm.perfil, modulosPermitidos: credForm.modulosPermitidos });
       } else {
         await usersApi.criar(credForm);
       }
       setModalCred(false);
       setUsers(await usersApi.listar());
     } catch (err) { alert(err.message || 'Erro'); }
+  };
+
+  const acessoCompleto = credForm.modulosPermitidos === null;
+  const toggleAcessoCompleto = () => setCredForm({ ...credForm, modulosPermitidos: acessoCompleto ? [] : null });
+  const toggleModulo = (key) => {
+    const atuais = credForm.modulosPermitidos || [];
+    const novo = atuais.includes(key) ? atuais.filter((k) => k !== key) : [...atuais, key];
+    setCredForm({ ...credForm, modulosPermitidos: novo });
   };
 
   const toggleAtivoCred = async (u) => {
@@ -170,14 +179,19 @@ export default function ConfigPage() {
         </div>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead><tr>{['Nome', 'Email', 'Perfil', 'Estado', 'Acoes'].map((h) => <th key={h} style={thStyle}>{h}</th>)}</tr></thead>
+            <thead><tr>{['Nome', 'Email', 'Perfil', 'Acesso', 'Estado', 'Acoes'].map((h) => <th key={h} style={thStyle}>{h}</th>)}</tr></thead>
             <tbody>
-              {loading && <tr><td colSpan={5} style={{ padding: 24, textAlign: 'center', color: 'var(--text-tertiary)' }}>A carregar...</td></tr>}
+              {loading && <tr><td colSpan={6} style={{ padding: 24, textAlign: 'center', color: 'var(--text-tertiary)' }}>A carregar...</td></tr>}
               {!loading && users.map((u) => (
                 <tr key={u.id}>
                   <td style={{ ...tdStyle, fontWeight: 600 }}>{u.nome}</td>
                   <td style={tdStyle}>{u.email}</td>
                   <td style={tdStyle}>{perfilLabel[u.perfil] || u.perfil}</td>
+                  <td style={tdStyle}>
+                    {Array.isArray(u.modulos_permitidos)
+                      ? <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: '#FFF9E6', color: '#B8860B' }}>{u.modulos_permitidos.length} aba(s)</span>
+                      : <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: '#E6F2FF', color: '#0073EA' }}>Completo</span>}
+                  </td>
                   <td style={tdStyle}>
                     <select
                       value={u.ativo ? 'ATIVO' : 'INATIVO'}
@@ -289,6 +303,30 @@ export default function ConfigPage() {
               </select>
             </div>
           </div>
+
+          <div style={{ marginBottom: 14, paddingTop: 4, borderTop: '1px solid var(--border)' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 500, marginTop: 14, marginBottom: 10, cursor: 'pointer' }}>
+              <input type="checkbox" checked={acessoCompleto} onChange={toggleAcessoCompleto} style={{ accentColor: 'var(--primary)' }} />
+              Acesso completo (todas as abas)
+            </label>
+            {!acessoCompleto && (
+              <>
+                <p style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 8 }}>Marque so as abas que esta credencial pode ver no menu:</p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                  {MODULOS.map((m) => {
+                    const on = (credForm.modulosPermitidos || []).includes(m.key);
+                    return (
+                      <label key={m.key} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer', padding: '6px 10px', borderRadius: 4, border: `1px solid ${on ? 'var(--primary)' : 'var(--border)'}`, background: on ? 'var(--primary-selected)' : 'transparent' }}>
+                        <input type="checkbox" checked={on} onChange={() => toggleModulo(m.key)} style={{ accentColor: 'var(--primary)' }} />
+                        <span>{m.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
             <button type="button" onClick={() => setModalCred(false)} style={{ flex: 1, padding: 10, background: 'transparent', border: '1px solid var(--border)', borderRadius: 4, fontSize: 14, fontFamily: 'inherit', cursor: 'pointer' }}>Cancelar</button>
             <button type="submit" style={{ flex: 1, padding: 10, background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 4, fontSize: 14, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer' }}>Guardar</button>

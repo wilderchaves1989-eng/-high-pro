@@ -39,7 +39,7 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === 'POST') {
-      const { nome, email, senha, perfil } = req.body || {};
+      const { nome, email, senha, perfil, modulosPermitidos } = req.body || {};
       if (!nome || !email || !senha) return res.status(400).json({ error: 'Nome, email e senha sao obrigatorios.' });
       if (String(senha).length < 6) return res.status(400).json({ error: 'A senha deve ter pelo menos 6 caracteres.' });
 
@@ -52,7 +52,8 @@ export default async function handler(req, res) {
       if (createErr) return res.status(400).json({ error: createErr.message });
 
       const perfilFinal = PERFIS_VALIDOS.includes(perfil) ? perfil : 'ATENDIMENTO';
-      const { error: updErr } = await admin.from('profiles').update({ nome, perfil: perfilFinal }).eq('id', created.user.id);
+      const modulos = Array.isArray(modulosPermitidos) ? modulosPermitidos : null;
+      const { error: updErr } = await admin.from('profiles').update({ nome, perfil: perfilFinal, modulos_permitidos: modulos }).eq('id', created.user.id);
       if (updErr) return res.status(400).json({ error: updErr.message });
 
       return res.status(200).json({ id: created.user.id, email: created.user.email });

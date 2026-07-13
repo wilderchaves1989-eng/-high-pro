@@ -108,3 +108,7 @@ drop policy if exists "Authenticated read perfil_comportamental" on perfil_compo
 drop policy if exists "Authenticated all perfil_comportamental" on perfil_comportamental;
 create policy "Authenticated read perfil_comportamental" on perfil_comportamental for select to authenticated using (true);
 create policy "Authenticated all perfil_comportamental" on perfil_comportamental for all to authenticated using (true);
+
+-- 7) MODULOS PERMITIDOS: controlo de acesso por credencial (esconde abas no menu)
+-- NULL = sem restricao (ve tudo, comportamento padrao). Array de chaves = ve so essas abas.
+alter table profiles add column if not exists modulos_permitidos jsonb;

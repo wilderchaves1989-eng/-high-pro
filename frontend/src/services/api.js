@@ -201,7 +201,7 @@ export const users = {
     const res = await fetch('/api/admin-users', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-      body: JSON.stringify({ nome: dados.nome, email: dados.email, senha: dados.senha, perfil: dados.perfil }),
+      body: JSON.stringify({ nome: dados.nome, email: dados.email, senha: dados.senha, perfil: dados.perfil, modulosPermitidos: dados.modulosPermitidos }),
     });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(json.error || 'Erro ao criar credencial');
@@ -230,6 +230,7 @@ export const users = {
     if (dados.nome) update.nome = dados.nome;
     if (dados.perfil) update.perfil = dados.perfil;
     if (dados.ativo !== undefined) update.ativo = dados.ativo;
+    if (dados.modulosPermitidos !== undefined) update.modulos_permitidos = dados.modulosPermitidos;
 
     const { data, error } = await supabase.from('profiles').update(update).eq('id', id).select().single();
     if (error) throw error;
